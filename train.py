@@ -14,9 +14,11 @@ PATIENCE = 100
 HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
 INTERVAL = 1
+LEARNING_RATE = 1e-4
 #ACTIVATION_CLASS = nn.Sigmoid
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
+LAYER_KWARGS = {"allow_zero": True}
 #LAYER_CLASS = nn.Linear
 #DATASET = 'mstz/breast'
 DATASET = 'imodels/credit-card'
@@ -43,11 +45,12 @@ model = Classifier(
     hidden_layers=HIDDEN_LAYERS,
     output_dim=1,
     layer_class=LAYER_CLASS,
+    layer_kwargs=LAYER_KWARGS,
     activation_class=ACTIVATION_CLASS,
 )
 
 criterion = nn.HuberLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 best = 0
 losses = []

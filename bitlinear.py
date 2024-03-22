@@ -53,10 +53,10 @@ class MinScaleQuantize(torch.autograd.Function):
         Q_b = 2**(b-1)
         eta = input.min()
         positive = input-eta
-        gamma = positive.max()
+        gamma = input.abs().max()
         scaled = torch.round(
             torch.clamp(
-                positive*Q_b/(gamma+eps),
+                positive*Q_b/gamma,
                 eps,
                 Q_b-eps,
             ),
@@ -68,7 +68,7 @@ class MinScaleQuantize(torch.autograd.Function):
         return grad_output
 
 class BitLinear(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=False):
+    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=True):
         super(BitLinear, self).__init__(
             in_features=in_features,
             out_features=out_features,
@@ -86,5 +86,4 @@ class BitLinear(nn.Linear):
         output = F.linear(normalized, binarized, self.bias)
         output = AbsMaxQuantize.apply(output)
         output = output*output.abs().max()*self.weight.mean()/2**(self.activation_bits-1)
-        #output = self.scale_activations(output)
         return output
