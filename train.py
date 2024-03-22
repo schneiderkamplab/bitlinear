@@ -14,7 +14,7 @@ PATIENCE = 100
 HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
 INTERVAL = 1
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-1
 #ACTIVATION_CLASS = nn.Sigmoid
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
@@ -51,6 +51,7 @@ model = Classifier(
 
 criterion = nn.HuberLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=50, patience=50)
 
 best = 0
 losses = []
@@ -67,6 +68,7 @@ for epoch in tqdm(range(EPOCHS)):
         output_test = model(X_test)
         acc_test = sum(1 for z, y in zip(output_test, y_test) if abs(z.item() - y.item()) < 0.5) / len(y_test)
         loss_test = criterion(output_test, y_test)
+        scheduler.step(loss_test)
         losses.append(loss_test)
         acces.append(acc_test)
         if losses[best] > loss_test or acc_test == 1.0:
@@ -75,5 +77,5 @@ for epoch in tqdm(range(EPOCHS)):
             print(f"early stopping at epoch {epoch} with patience {PATIENCE}")
             break
     if epoch % INTERVAL == 0:
-        print(f"epoch {epoch} train_loss {loss_train} test_loss {loss_test} train_acc {acc_train} test_acc {acc_test}")
+        print(f"epoch {epoch} train_loss {loss_train} test_loss {loss_test} train_acc {acc_train} test_acc {acc_test} lr {optimizer.param_groups[0]['lr']}")
 print(f"best epoch {best} with loss {losses[best]} acc {acces[best]}")
