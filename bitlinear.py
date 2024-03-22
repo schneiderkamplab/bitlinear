@@ -2,17 +2,73 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class STEFunction(torch.autograd.Function):
+class Binarize(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input):
-        return (input > 0).float()
+        alpha = input.mean()
+        binarized = torch.sign(input-alpha)
+        binarized.requires_grad = False
+        return binarized
 
     @staticmethod
     def backward(ctx, grad_output):
-        return F.hardtanh(grad_output)
+        return grad_output
+
+class Ternarize(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, eps=1e-5):
+        gamma = input.abs().mean()
+        unclipped = input/(gamma+eps)
+        ones = torch.ones_like(input)
+        minus_ones = -1*ones
+        ternarized = torch.max(minus_ones, torch.min(ones, torch.round(unclipped)))
+        ternarized.requires_grad = False
+        return ternarized
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output
+
+class AbsMaxQuantize(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, eps=1e-5, b=8):
+        Q_b = 2**(b-1)
+        gamma = input.abs().max()
+        quantized = torch.round(
+            torch.clamp(
+                input*Q_b/(gamma+eps),
+                -Q_b+eps,
+                Q_b-eps,
+            ),
+        )
+        return quantized
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output
+
+class MinScaleQuantize(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, eps=1e-5, b=8):
+        Q_b = 2**(b-1)
+        eta = input.min()
+        positive = input-eta
+        gamma = positive.max()
+        scaled = torch.round(
+            torch.clamp(
+                positive*Q_b/(gamma+eps),
+                eps,
+                Q_b-eps,
+            ),
+        )
+        return scaled
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output
 
 class BitLinear(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-8, activation_bits=8, allow_zero=False):
+    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=False):
         super(BitLinear, self).__init__(
             in_features=in_features,
             out_features=out_features,
@@ -21,43 +77,14 @@ class BitLinear(nn.Linear):
             dtype=dtype,
         )
         self.eps = eps
-        self.Q_b = 2**(activation_bits-1)
+        self.activation_bits = activation_bits
         self.allow_zero = allow_zero
-        self.ones = torch.ones_like(self.weight)
-        self.minus_ones = -1*self.ones
-
-    def binarize_weights(self):
-        if self.allow_zero:
-            gamma = self.weight.abs().mean()
-            unclipped = self.weight/(gamma+self.eps)
-            binarized = torch.max(self.minus_ones, torch.min(self.ones, torch.round(unclipped)))
-        else:
-            alpha = self.weight.mean()
-            binarized = torch.sign(self.weight-alpha)
-        return binarized
-
-    def quantize_activations(self, x):
-        gamma = x.abs().max()
-        quantized_x = torch.clamp(
-                x*self.Q_b/(gamma+self.eps),
-                -self.Q_b+self.eps,
-                self.Q_b-self.eps,
-            )
-        return quantized_x
-
-    def scale_activations(self, x):
-        eta = x.min()
-        gamma = x.abs().max()
-        scaled_x = torch.clamp(
-            (x-eta)*self.Q_b/(gamma+self.eps),
-            self.eps,
-            self.Q_b-self.eps,
-        )
-        return scaled_x
 
     def forward(self, input):
-        binarized_weights = self.binarize_weights()
-        output = F.linear(input, binarized_weights, self.bias)
-        output = self.quantize_activations(output)
+        normalized = torch.layer_norm(input, input.size()[1:])
+        binarized = Binarize.apply(self.weight)
+        output = F.linear(normalized, binarized, self.bias)
+        output = AbsMaxQuantize.apply(output)
+        output = output*output.abs().max()*self.weight.mean()/2**(self.activation_bits-1)
         #output = self.scale_activations(output)
         return output
