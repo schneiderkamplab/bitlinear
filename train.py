@@ -14,7 +14,8 @@ PATIENCE = 100
 HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
 INTERVAL = 1
-LEARNING_RATE = 1e-1
+LEARNING_RATE = 1e-2
+LR_SCHEDULER = False
 #ACTIVATION_CLASS = nn.Sigmoid
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
@@ -51,7 +52,7 @@ model = Classifier(
 
 criterion = nn.HuberLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=50, patience=50)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=0, patience=50)
 
 best = 0
 losses = []
@@ -68,7 +69,8 @@ for epoch in tqdm(range(EPOCHS)):
         output_test = model(X_test)
         acc_test = sum(1 for z, y in zip(output_test, y_test) if abs(z.item() - y.item()) < 0.5) / len(y_test)
         loss_test = criterion(output_test, y_test)
-        scheduler.step(loss_test)
+        if LR_SCHEDULER:
+            scheduler.step(loss_test)
         losses.append(loss_test)
         acces.append(acc_test)
         if losses[best] > loss_test or acc_test == 1.0:
