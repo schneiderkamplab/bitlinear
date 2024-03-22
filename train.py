@@ -14,6 +14,8 @@ PATIENCE = 100
 HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
 INTERVAL = 1
+#ACTIVATION_CLASS = nn.Sigmoid
+ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
 #LAYER_CLASS = nn.Linear
 #DATASET = 'mstz/breast'
@@ -41,6 +43,7 @@ model = Classifier(
     hidden_layers=HIDDEN_LAYERS,
     output_dim=1,
     layer_class=LAYER_CLASS,
+    activation_class=ACTIVATION_CLASS,
 )
 
 criterion = nn.HuberLoss()
