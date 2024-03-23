@@ -87,3 +87,15 @@ class BitLinear(nn.Linear):
         output = AbsMaxQuantize.apply(output)
         output = output*output.abs().max()*self.weight.mean()/2**(self.activation_bits-1)
         return output
+
+def replace_layer(model, old_class, new_class, **new_class_kwargs):
+    for name, module in model.named_children():
+        if isinstance(module, old_class):
+            kwargs = dict(new_class_kwargs)
+            kwargs["in_features"] = module.in_features
+            kwargs["out_features"] = module.out_features
+            kwargs["bias"] = module.bias is not None
+            setattr(model, name, new_class(**kwargs))
+            print(f"replaced layer {name} of class {old_class} with {new_class}")
+        else:
+            replace_layer(module, old_class, new_class, **kwargs)

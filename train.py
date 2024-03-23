@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from bitlinear import BitLinear
+from bitlinear import BitLinear, replace_layer
 from classifier import Classifier
 
 EPOCHS = 100000
@@ -45,10 +45,11 @@ model = Classifier(
     hidden_dim=HIDDEN_DIM,
     hidden_layers=HIDDEN_LAYERS,
     output_dim=1,
-    layer_class=LAYER_CLASS,
-    layer_kwargs=LAYER_KWARGS,
+    layer_class=nn.Linear,
+    layer_kwargs={},
     activation_class=ACTIVATION_CLASS,
 )
+replace_layer(model, nn.Linear, LAYER_CLASS, **LAYER_KWARGS)
 
 criterion = nn.HuberLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
