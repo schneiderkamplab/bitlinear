@@ -8,11 +8,11 @@ class Binarize(torch.autograd.Function):
         alpha = input.mean()
         binarized = torch.sign(input-alpha)
         binarized.requires_grad = False
-        return binarized
+        return binarized, alpha
 
     @staticmethod
-    def backward(ctx, grad_output):
-        return grad_output
+    def backward(ctx, grad_output, alpha):
+        return grad_output, None
 
 class Ternarize(torch.autograd.Function):
     @staticmethod
@@ -23,36 +23,35 @@ class Ternarize(torch.autograd.Function):
         minus_ones = -1*ones
         ternarized = torch.max(minus_ones, torch.min(ones, torch.round(unclipped)))
         ternarized.requires_grad = False
-        return ternarized
+        return ternarized, gamma
 
     @staticmethod
-    def backward(ctx, grad_output):
-        return grad_output
+    def backward(ctx, grad_output, gamma):
+        return grad_output, None
 
 class AbsMaxQuantize(torch.autograd.Function):
-    eps = 1e-5
-    b = 8
     @staticmethod
-    def forward(ctx, input):
-        Q_b = 2**(AbsMaxQuantize.b-1)
+    def forward(ctx, input, eps=1e-5, activation_bits=8):
+        Q_b = 2**(activation_bits-1)
         gamma = input.abs().max()
         quantized = torch.round(
             torch.clamp(
                 input*Q_b/gamma,
-                -Q_b+AbsMaxQuantize.eps,
-                Q_b-AbsMaxQuantize.eps,
+                -Q_b+eps,
+                Q_b-eps,
             ),
         )
-        return quantized
+        quantized.requires_grad = False
+        return quantized, gamma
 
     @staticmethod
-    def backward(ctx, grad_output):
-        return grad_output
+    def backward(ctx, grad_output, gamma):
+        return grad_output, None, None
 
 class MinScaleQuantize(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input, eps=1e-5, b=8):
-        Q_b = 2**(b-1)
+    def forward(ctx, input, eps=1e-5, activation_bits=8):
+        Q_b = 2**(activation_bits-1)
         eta = input.min()
         positive = input-eta
         gamma = input.abs().max()
@@ -63,11 +62,12 @@ class MinScaleQuantize(torch.autograd.Function):
                 Q_b-eps,
             ),
         )
+        scaled.requires_grad = False
         return scaled
 
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output
+        return grad_output, None, None
 
 class BitLinear(nn.Linear):
     def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=True):
@@ -84,11 +84,10 @@ class BitLinear(nn.Linear):
 
     def forward(self, input):
         normalized_activations = torch.layer_norm(input, input.size()[1:])
-        quantized_activations = AbsMaxQuantize.apply(normalized_activations)
-        quantized_weights = Ternarize.apply(self.weight) if self.allow_zero else Binarize.apply(self.weight)
+        quantized_activations, gamma = AbsMaxQuantize.apply(normalized_activations, self.eps, self.activation_bits)
+        quantized_weights, beta = Ternarize.apply(self.weight, self.eps) if self.allow_zero else Binarize.apply(self.weight, self.eps)
         quantized_outputs = F.linear(quantized_activations, quantized_weights, self.bias)
-        gamma = normalized_activations.abs().mean()
-        dequantized_output = quantized_outputs*self.weight.abs().mean()*gamma/2**(self.activation_bits-1)
+        dequantized_output = quantized_outputs*beta*gamma/2**(self.activation_bits-1)
         return dequantized_output
 
 def replace_layer(model, old_class, new_class, **new_class_kwargs):
