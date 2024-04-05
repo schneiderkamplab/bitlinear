@@ -16,18 +16,16 @@ class Binarize(torch.autograd.Function):
 
 class Ternarize(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input, eps=1e-5):
+    def forward(ctx, input, ones, minus_ones, eps=1e-5):
         gamma = input.abs().mean()
         unclipped = input/(gamma+eps)
-        ones = torch.ones_like(input)
-        minus_ones = -1*ones
         ternarized = torch.max(minus_ones, torch.min(ones, torch.round(unclipped)))
         ternarized.requires_grad = False
         return ternarized, gamma
 
     @staticmethod
     def backward(ctx, grad_output, gamma):
-        return grad_output, None
+        return grad_output, None, None, None
 
 class AbsMaxQuantize(torch.autograd.Function):
     @staticmethod
@@ -63,10 +61,10 @@ class MinScaleQuantize(torch.autograd.Function):
             ),
         )
         scaled.requires_grad = False
-        return scaled
+        return scaled, gamma
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def backward(ctx, grad_output, gamma):
         return grad_output, None, None
 
 class BitLinear(nn.Linear):
@@ -81,16 +79,21 @@ class BitLinear(nn.Linear):
         self.eps = eps
         self.activation_bits = activation_bits
         self.allow_zero = allow_zero
+        self.ones = torch.ones_like(self.weight)
+        self.minus_ones = -1*self.ones
+        self.requantize()
+
+    def requantize(self):
+        self.quantized_weights, self.beta = Ternarize.apply(self.weight, self.ones, self.minus_ones, self.eps) if self.allow_zero else Binarize.apply(self.weight, self.eps)
 
     def forward(self, input):
         normalized_activations = torch.layer_norm(input, input.size()[1:])
         quantized_activations, gamma = AbsMaxQuantize.apply(normalized_activations, self.eps, self.activation_bits)
-        quantized_weights, beta = Ternarize.apply(self.weight, self.eps) if self.allow_zero else Binarize.apply(self.weight, self.eps)
-        quantized_outputs = F.linear(quantized_activations, quantized_weights, self.bias)
-        dequantized_output = quantized_outputs*beta*gamma/2**(self.activation_bits-1)
+        quantized_outputs = F.linear(quantized_activations, self.quantized_weights, self.bias)
+        dequantized_output = quantized_outputs*self.beta*gamma/2**(self.activation_bits-1)
         return dequantized_output
 
-def replace_layer(model, old_class, new_class, **new_class_kwargs):
+def replace_layers(model, old_class, new_class, **new_class_kwargs):
     for name, module in model.named_children():
         if isinstance(module, old_class):
             kwargs = dict(new_class_kwargs)
@@ -100,4 +103,12 @@ def replace_layer(model, old_class, new_class, **new_class_kwargs):
             setattr(model, name, new_class(**kwargs))
             print(f"replaced layer {name} of class {old_class} with {new_class}")
         else:
-            replace_layer(module, old_class, new_class, **new_class_kwargs)
+            replace_layers(module, old_class, new_class, **new_class_kwargs)
+
+def requantize_layers(model):
+    for name, module in model.named_children():
+        if isinstance(module, BitLinear):
+            module.requantize()
+            #print(f"requantized layer {name}")
+        else:
+            requantize_layers(module)

@@ -6,14 +6,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from bitlinear import BitLinear, replace_layer
+from bitlinear import BitLinear, replace_layers, requantize_layers
 from classifier import Classifier
 
 EPOCHS = 100000
 PATIENCE = 100
 HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
-INTERVAL = 1
+INTERVAL = 100
 LEARNING_RATE = 1e-2
 LR_SCHEDULER = False
 #ACTIVATION_CLASS = nn.Sigmoid
@@ -49,7 +49,7 @@ model = Classifier(
     layer_kwargs={},
     activation_class=ACTIVATION_CLASS,
 )
-replace_layer(model, nn.Linear, LAYER_CLASS, **LAYER_KWARGS)
+replace_layers(model, nn.Linear, LAYER_CLASS, **LAYER_KWARGS)
 
 criterion = nn.HuberLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -66,6 +66,7 @@ for epoch in tqdm(range(EPOCHS)):
     loss_train = criterion(output_train, y_train)
     loss_train.backward()
     optimizer.step()
+    requantize_layers(model)
     with torch.no_grad():
         output_test = model(X_test)
         acc_test = sum(1 for z, y in zip(output_test, y_test) if abs(z.item() - y.item()) < 0.5) / len(y_test)
