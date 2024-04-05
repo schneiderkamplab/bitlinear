@@ -68,7 +68,7 @@ class MinScaleQuantize(torch.autograd.Function):
         return grad_output, None, None
 
 class BitLinear(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=True):
+    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=True, auto_requantize=True):
         super(BitLinear, self).__init__(
             in_features=in_features,
             out_features=out_features,
@@ -79,9 +79,11 @@ class BitLinear(nn.Linear):
         self.eps = eps
         self.activation_bits = activation_bits
         self.allow_zero = allow_zero
+        self.auto_requantize = auto_requantize
         self.ones = torch.ones_like(self.weight)
         self.minus_ones = -1*self.ones
-        self.requantize()
+        if not self.auto_requantize:
+            self.requantize()
 
     def requantize(self):
         self.quantized_weights, self.beta = Ternarize.apply(self.weight, self.ones, self.minus_ones, self.eps) if self.allow_zero else Binarize.apply(self.weight, self.eps)
@@ -89,7 +91,8 @@ class BitLinear(nn.Linear):
     def forward(self, input):
         normalized_activations = torch.layer_norm(input, input.size()[1:])
         quantized_activations, gamma = AbsMaxQuantize.apply(normalized_activations, self.eps, self.activation_bits)
-        self.requantize()
+        if self.auto_requantize:
+            self.requantize()
         quantized_outputs = F.linear(quantized_activations, self.quantized_weights, self.bias)
         dequantized_output = quantized_outputs*self.beta*gamma/2**(self.activation_bits-1)
         return dequantized_output
@@ -109,7 +112,7 @@ def replace_layers(model, old_class, new_class, **new_class_kwargs):
 def requantize_layers(model):
     for name, module in model.named_children():
         if isinstance(module, BitLinear):
-            module.requantize()
-            #print(f"requantized layer {name}")
+            if not module.auto_requantize:
+                module.requantize()
         else:
             requantize_layers(module)
