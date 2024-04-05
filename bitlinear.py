@@ -101,12 +101,10 @@ class BitLinear(nn.Linear):
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, allow_zero={self.allow_zero}, auto_requantize={self.auto_requantize}, training={self.training})"
 
-    def to(self, *args, **kwargs):
-        self.ones = self.ones.to(*args, **kwargs)
-        self.minus_ones = self.minus_ones.to(*args, **kwargs)
-        return super(BitLinear, self).to(*args, **kwargs)
-
     def requantize(self):
+        if self.ones.device != self.weight.data.device or self.ones.device != self.weight.data.device:
+            self.ones = self.ones.to(self.weight.data.device)
+            self.minus_ones = self.minus_ones.to(self.weight.data.device)
         self.quantized_weights, self.beta = Ternarize.apply(self.weight, self.ones, self.minus_ones, self.eps) if self.allow_zero else Binarize.apply(self.weight, self.eps)
 
     def forward(self, input):
