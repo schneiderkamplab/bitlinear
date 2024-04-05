@@ -77,6 +77,8 @@ for epoch in tqdm(range(EPOCHS)):
         acces.append(acc_test)
         if losses[best] > loss_test or acc_test == 1.0:
             best = epoch
+            torch.save(model, "model.pt")
+            print(f"epoch {epoch} saved model with test_loss {loss_test} test_acc {acc_test}")
         if epoch - best > PATIENCE or acc_test == 1.0:
             print(f"early stopping at epoch {epoch} with patience {PATIENCE}")
             break

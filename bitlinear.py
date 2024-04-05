@@ -68,7 +68,19 @@ class MinScaleQuantize(torch.autograd.Function):
         return grad_output, None, None
 
 class BitLinear(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None, eps=1e-5, activation_bits=8, allow_zero=True, auto_requantize=True):
+    def __init__(
+            self,
+            in_features,
+            out_features,
+            bias=True,
+            device=None,
+            dtype=None,
+            eps=1e-5,
+            activation_bits=8,
+            allow_zero=True,
+            auto_requantize=True,
+            training=True,
+        ):
         super(BitLinear, self).__init__(
             in_features=in_features,
             out_features=out_features,
@@ -80,10 +92,14 @@ class BitLinear(nn.Linear):
         self.activation_bits = activation_bits
         self.allow_zero = allow_zero
         self.auto_requantize = auto_requantize
+        self.training = training
         self.ones = torch.ones_like(self.weight)
         self.minus_ones = -1*self.ones
         if not self.auto_requantize:
             self.requantize()
+
+    def __repr__(self):
+        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, allow_zero={self.allow_zero}, auto_requantize={self.auto_requantize}, training={self.training})"
 
     def requantize(self):
         self.quantized_weights, self.beta = Ternarize.apply(self.weight, self.ones, self.minus_ones, self.eps) if self.allow_zero else Binarize.apply(self.weight, self.eps)
@@ -104,7 +120,9 @@ def replace_layers(model, old_class, new_class, **new_class_kwargs):
             kwargs["in_features"] = module.in_features
             kwargs["out_features"] = module.out_features
             kwargs["bias"] = module.bias is not None
-            setattr(model, name, new_class(**kwargs))
+            new_module = new_class(**kwargs)
+            new_module.weight.data = module.weight.data
+            setattr(model, name, new_module)
             print(f"replaced layer {name} of class {old_class} with {new_class}")
         else:
             replace_layers(module, old_class, new_class, **new_class_kwargs)
