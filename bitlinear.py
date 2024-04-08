@@ -130,6 +130,7 @@ def replace_layers(model, old_class, new_class, **new_class_kwargs):
             new_module.weight.data = module.weight.data
             if bias:
                 new_module.bias.data = module.bias.data
+            new_module.requantize()
             setattr(model, name, new_module)
             #print(f"replaced layer {name} of class {old_class} with {new_class}")
         else:
