@@ -4,7 +4,7 @@ import torch.nn as nn
 from bitlinear import BitLinear, replace_layers
 
 LAYER_CLASS = BitLinear
-LAYER_KWARGS = {"allow_zero": True, "training": False, "auto_requantize": False}
+LAYER_KWARGS = {"allow_zero": True, "training": True, "auto_requantize": True}
 
 model, X_test, y_test = torch.load("model.pt")
 print(model)

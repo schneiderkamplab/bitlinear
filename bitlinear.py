@@ -80,6 +80,7 @@ class BitLinear(nn.Linear):
             allow_zero=True,
             auto_requantize=True,
             training=True,
+            kernel=F.linear,
         ):
         super(BitLinear, self).__init__(
             in_features=in_features,
@@ -93,13 +94,14 @@ class BitLinear(nn.Linear):
         self.allow_zero = allow_zero
         self.auto_requantize = auto_requantize
         self.training = training
+        self.kernel = kernel
         self.ones = torch.ones_like(self.weight)
         self.minus_ones = -1*self.ones
-        if not self.auto_requantize:
+        if not self.auto_requantize or not self.training:
             self.requantize()
 
     def __repr__(self):
-        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, allow_zero={self.allow_zero}, auto_requantize={self.auto_requantize}, training={self.training})"
+        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, allow_zero={self.allow_zero}, auto_requantize={self.auto_requantize}, training={self.training}, kernel={self.kernel})"
 
     def requantize(self):
         if self.ones.device != self.weight.data.device or self.ones.device != self.weight.data.device:
@@ -110,9 +112,9 @@ class BitLinear(nn.Linear):
     def forward(self, input):
         normalized_activations = torch.layer_norm(input, input.size()[1:])
         quantized_activations, gamma = AbsMaxQuantize.apply(normalized_activations, self.eps, self.activation_bits)
-        if self.auto_requantize:
+        if self.training and self.auto_requantize:
             self.requantize()
-        quantized_outputs = F.linear(quantized_activations, self.quantized_weights, self.bias)
+        quantized_outputs = self.kernel(quantized_activations, self.quantized_weights, self.bias)
         dequantized_output = quantized_outputs*self.beta*gamma/2**(self.activation_bits-1)
         return dequantized_output
 
