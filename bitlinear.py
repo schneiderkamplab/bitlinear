@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+from kernels import torch_linear
 
 class Binarize(torch.autograd.Function):
     @staticmethod
@@ -80,7 +81,7 @@ class BitLinear(nn.Linear):
             allow_zero=True,
             auto_requantize=True,
             training=True,
-            kernel=F.linear,
+            kernel=torch_linear,
         ):
         super(BitLinear, self).__init__(
             in_features=in_features,

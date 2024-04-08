@@ -2,9 +2,17 @@ import torch
 import torch.nn as nn
 
 from bitlinear import BitLinear, replace_layers
+import kernels
 
 LAYER_CLASS = BitLinear
-LAYER_KWARGS = {"allow_zero": True, "training": False, "auto_requantize": False}
+LAYER_KWARGS = {
+    "allow_zero": True,
+    "training": False,
+    "auto_requantize": False,
+#    "kernel": kernels.torch_linear,
+#    "kernel": kernels.torch_mul_add,
+    "kernel": kernels.naive,
+}
 
 model, X_test, y_test = torch.load("model.pt")
 print(model)
