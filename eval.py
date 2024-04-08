@@ -11,7 +11,9 @@ LAYER_KWARGS = {
     "auto_requantize": False,
 #    "kernel": kernels.torch_linear,
 #    "kernel": kernels.torch_mul_add,
-    "kernel": kernels.naive,
+#    "kernel": kernels.naive,
+#    "kernel": kernels.naive_listcomp,
+    "kernel": kernels.ternary_naive,
 }
 
 model, X_test, y_test = torch.load("model.pt")
