@@ -122,11 +122,14 @@ def replace_layers(model, old_class, new_class, **new_class_kwargs):
             kwargs = dict(new_class_kwargs)
             kwargs["in_features"] = module.in_features
             kwargs["out_features"] = module.out_features
-            kwargs["bias"] = module.bias is not None
+            bias = getattr(module, "bias", None) is not None
+            kwargs["bias"] = bias
             new_module = new_class(**kwargs)
             new_module.weight.data = module.weight.data
+            if bias:
+                new_module.bias.data = module.bias.data
             setattr(model, name, new_module)
-            print(f"replaced layer {name} of class {old_class} with {new_class}")
+            #print(f"replaced layer {name} of class {old_class} with {new_class}")
         else:
             replace_layers(module, old_class, new_class, **new_class_kwargs)
 

@@ -46,7 +46,7 @@ model = Classifier(
     hidden_layers=HIDDEN_LAYERS,
     output_dim=1,
     layer_class=nn.Linear,
-    layer_kwargs={},
+    layer_kwargs={"bias": False},
     activation_class=ACTIVATION_CLASS,
 )
 replace_layers(model, nn.Linear, LAYER_CLASS, **LAYER_KWARGS)
@@ -77,7 +77,7 @@ for epoch in tqdm(range(EPOCHS)):
         acces.append(acc_test)
         if losses[best] > loss_test or acc_test == 1.0:
             best = epoch
-            torch.save(model, "model.pt")
+            torch.save((model, X_test, y_test), "model.pt")
             print(f"epoch {epoch} saved model with test_loss {loss_test} test_acc {acc_test}")
         if epoch - best > PATIENCE or acc_test == 1.0:
             print(f"early stopping at epoch {epoch} with patience {PATIENCE}")
