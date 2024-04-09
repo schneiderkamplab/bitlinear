@@ -32,7 +32,7 @@ class AbsMaxQuantize(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, eps=1e-5, activation_bits=8):
         Q_b = 2**(activation_bits-1)
-        gamma = input.abs().max()
+        gamma = input.abs().max(dim=-1, keepdim=True).values
         quantized = torch.round(
             torch.clamp(
                 input*Q_b/gamma,
@@ -131,7 +131,8 @@ def replace_layers(model, old_class, new_class, **new_class_kwargs):
             new_module.weight.data = module.weight.data
             if bias:
                 new_module.bias.data = module.bias.data
-            new_module.requantize()
+            if hasattr(module, "norm"):
+                new_module.norm = module.norm
             setattr(model, name, new_module)
             #print(f"replaced layer {name} of class {old_class} with {new_class}")
         else:

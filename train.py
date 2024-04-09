@@ -4,12 +4,16 @@ from sklearn.preprocessing import StandardScaler
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from bitlinear import BitLinear, replace_layers, requantize_layers
+#from bitnet import BitLinear
+#from bitnet_int import BitLinear
 from classifier import Classifier
 
 EPOCHS = 100000
+BATCH_SIZE = 0
 PATIENCE = 100
 HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
@@ -19,7 +23,8 @@ LR_SCHEDULER = False
 #ACTIVATION_CLASS = nn.Sigmoid
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
-LAYER_KWARGS = {"allow_zero": True}
+#LAYER_KWARGS = {"auto_requantize": False}
+LAYER_KWARGS = {}
 #LAYER_CLASS = nn.Linear
 #DATASET = 'mstz/breast'
 DATASET = 'imodels/credit-card'
@@ -59,12 +64,23 @@ best = 0
 losses = []
 acces = []
 
+if BATCH_SIZE:
+    xy_train = DataLoader(list(zip(X_train, y_train)), batch_size=BATCH_SIZE, shuffle=True)
 for epoch in tqdm(range(EPOCHS)):
     optimizer.zero_grad()
-    output_train = model(X_train)
+    if BATCH_SIZE:
+        output_train = []
+        for X_train_batch, y_train_batch in xy_train:
+            output_train_batch = model(X_train_batch)
+            loss_train = criterion(output_train_batch, y_train_batch)
+            loss_train.backward()
+            output_train.append(output_train_batch)
+        output_train = torch.cat(output_train)
+    else:
+        output_train = model(X_train)
+        loss_train = criterion(output_train, y_train)
+        loss_train.backward()
     acc_train = sum(1 for z, y in zip(output_train, y_train) if abs(z.item() - y.item()) < 0.5) / len(y_train)
-    loss_train = criterion(output_train, y_train)
-    loss_train.backward()
     optimizer.step()
     requantize_layers(model)
     with torch.no_grad():
