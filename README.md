@@ -1,2 +1,21 @@
 # bitlinear
-BitLinear implementation
+This project aims to provide a production-ready implementation of 1.58-bit layers for quantization-aware training and time-, memory-, and energy-efficient inference. It builds on the ideas from [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/pdf/2402.17764.pdf).
+
+# usage
+The usage is best explained by a short example:
+```
+from bitlinear import replace_modules
+from transformers import AutoModelForCausalLM
+model = AutoModelForCausalLM.from_pretrained("HuggingFaceM4/tiny-random-LlamaForCausalLM")
+replace_modules(model)
+```
+
+# comparison to other work
+There are other implementations of bit-linear layers, most of which get at least some of the details wrong at the time of this writing (April 2024).
+
+The focus of this implementation is to develop:
+* a flexible production-ready drop-in replacemenbt for torch.nn.LinearLayer,
+* efficient fused kernels for training, and
+* efficient fused kernels for inference with 2-bit weights and 8-bit activations.
+
+Furthermore, this implementation is meant to serve as a testbed for research on low-bit quantization aware training and inference.

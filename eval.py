@@ -1,26 +1,17 @@
 import torch
 import torch.nn as nn
 
-from bitlinear2 import BitLinear, replace_layers
-#from bitnet import BitLinear
-#from bitnet_int import BitLinear
+from bitlinear import BitLinear, replace_modules
 import kernels
 
 LAYER_CLASS = BitLinear
 LAYER_KWARGS = {
-#    "allow_zero": True,
-#    "training": False,
-#    "auto_requantize": False,
-#    "kernel": kernels.torch_linear,
-#    "kernel": kernels.torch_mul_add,
-#    "kernel": kernels.naive,
-#    "kernel": kernels.naive_listcomp,
-    "kernel": kernels.ternary_naive,
+    "kernel": kernels.TorchMulAdd(), 
 }
 
 model, X_test, y_test = torch.load("model.pt")
 print(model)
-replace_layers(model, BitLinear, LAYER_CLASS, **LAYER_KWARGS)
+replace_modules(model, BitLinear, LAYER_CLASS, LAYER_KWARGS)
 print(model)
 
 criterion = nn.HuberLoss()

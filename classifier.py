@@ -1,6 +1,7 @@
 import torch.nn as nn
 
 class Classifier(nn.Module):
+
     def __init__(self, input_dim, hidden_dim, hidden_layers, output_dim, layer_class=nn.Linear, layer_kwargs={}, activation_class=nn.Sigmoid):
         super(Classifier, self).__init__()
         self.input = layer_class(input_dim, hidden_dim, **layer_kwargs)

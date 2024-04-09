@@ -3,41 +3,37 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from bitlinear2 import BitLinear, replace_layers, requantize_layers
-#from bitnet import BitLinear
-#from bitnet_int import BitLinear
+from bitlinear import BitLinear, replace_modules
 from classifier import Classifier
 
+# data config
+DATASET = 'imodels/credit-card'
+TARGET_COL= 'default.payment.next.month'
+
+# training config
 EPOCHS = 100000
-BATCH_SIZE = 0
+BATCH_SIZE = 0 # 0 for no batching
 PATIENCE = 100
-HIDDEN_DIM = 128
-HIDDEN_LAYERS = 4
 INTERVAL = 100
 LEARNING_RATE = 1e-2
 SAVE = True
 LR_SCHEDULER = False
-#ACTIVATION_CLASS = nn.Sigmoid
+
+# model config
+HIDDEN_DIM = 128
+HIDDEN_LAYERS = 4
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
-LAYER_KWARGS = {"auto_requantize": False}
-#LAYER_KWARGS = {}
-#LAYER_CLASS = nn.Linear
-#DATASET = 'mstz/breast'
-DATASET = 'imodels/credit-card'
-#TARGET_COL= 'is_cancer'
-TARGET_COL= 'default.payment.next.month'
+LAYER_KWARGS = {}
 
+# data preparation
 data = load_dataset(DATASET)['train'].to_pandas()
-
 X = data.drop([TARGET_COL], axis=1).values
 y = data[TARGET_COL].values
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.10, random_state=42)
-
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
@@ -45,6 +41,8 @@ X_train = torch.Tensor(X_train)
 X_test = torch.Tensor(X_test)
 y_train = torch.Tensor(y_train).unsqueeze(1)
 y_test = torch.Tensor(y_test).unsqueeze(1)
+
+# model preparation
 
 model = Classifier(
     input_dim=X_train.shape[1],
@@ -55,18 +53,19 @@ model = Classifier(
     layer_kwargs={"bias": False},
     activation_class=ACTIVATION_CLASS,
 )
-replace_layers(model, nn.Linear, LAYER_CLASS, **LAYER_KWARGS)
+replace_modules(model, nn.Linear, LAYER_CLASS, LAYER_KWARGS)
 
+# training preparation
 criterion = nn.HuberLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=0, patience=50)
-
 best = 0
 losses = []
 acces = []
-
 if BATCH_SIZE:
     xy_train = DataLoader(list(zip(X_train, y_train)), batch_size=BATCH_SIZE, shuffle=True)
+
+# training
 for epoch in tqdm(range(EPOCHS)):
     optimizer.zero_grad()
     if BATCH_SIZE:
@@ -83,7 +82,6 @@ for epoch in tqdm(range(EPOCHS)):
         loss_train.backward()
     acc_train = sum(1 for z, y in zip(output_train, y_train) if abs(z.item() - y.item()) < 0.5) / len(y_train)
     optimizer.step()
-    requantize_layers(model)
     with torch.no_grad():
         output_test = model(X_test)
         acc_test = sum(1 for z, y in zip(output_test, y_test) if abs(z.item() - y.item()) < 0.5) / len(y_test)
