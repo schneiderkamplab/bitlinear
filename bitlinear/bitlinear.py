@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from kernels import TorchLinear
+from .kernels import TorchLinear
 
 def round_clamp(input, min, max):
     return (input.round().clamp(min, max) - input).detach() + input

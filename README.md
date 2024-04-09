@@ -1,6 +1,19 @@
 # bitlinear
 This project aims to provide a production-ready implementation of 1.58-bit layers for quantization-aware training and time-, memory-, and energy-efficient inference. It builds on the ideas from [The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits](https://arxiv.org/pdf/2402.17764.pdf).
 
+# installation
+Installation from PyPI:
+```
+pip install bitlinear
+```
+
+Installation from source:
+```
+git clone https://github.com/schneiderkamplab/bitlinear
+cd bitlinear
+pip install .
+```
+
 # usage
 The usage is best explained by a short example:
 ```
@@ -10,7 +23,11 @@ model = AutoModelForCausalLM.from_pretrained("HuggingFaceM4/tiny-random-LlamaFor
 replace_modules(model)
 ```
 
-A more elaborate example is available under `examples`, including training and evaluating a binary classifer.
+A more elaborate example is available under `examples`, including training and evaluating a binary classifer:
+```
+python examples/train.py
+python examples/eval.py
+```
 
 # comparison to other work
 There are other implementations of bit-linear layers, most of which get at least some of the details wrong at the time of this writing (April 2024).

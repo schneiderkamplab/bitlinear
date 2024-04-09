@@ -1,12 +1,11 @@
 import torch
 import torch.nn as nn
 
-from bitlinear import BitLinear, replace_modules
-import kernels
+from bitlinear import BitLinear, TorchMulAdd, replace_modules
 
 LAYER_CLASS = BitLinear
 LAYER_KWARGS = {
-    "kernel": kernels.TorchMulAdd(), 
+    "kernel": TorchMulAdd(),
 }
 
 model, X_test, y_test = torch.load("model.pt")
