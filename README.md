@@ -10,6 +10,8 @@ model = AutoModelForCausalLM.from_pretrained("HuggingFaceM4/tiny-random-LlamaFor
 replace_modules(model)
 ```
 
+A more elaborate example is available under `examples`, including training and evaluating a binary classifer.
+
 # comparison to other work
 There are other implementations of bit-linear layers, most of which get at least some of the details wrong at the time of this writing (April 2024).
 
