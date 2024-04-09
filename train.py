@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from bitlinear import BitLinear, replace_layers, requantize_layers
+from bitlinear2 import BitLinear, replace_layers, requantize_layers
 #from bitnet import BitLinear
 #from bitnet_int import BitLinear
 from classifier import Classifier
@@ -19,12 +19,13 @@ HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
 INTERVAL = 100
 LEARNING_RATE = 1e-2
+SAVE = True
 LR_SCHEDULER = False
 #ACTIVATION_CLASS = nn.Sigmoid
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
-#LAYER_KWARGS = {"auto_requantize": False}
-LAYER_KWARGS = {}
+LAYER_KWARGS = {"auto_requantize": False}
+#LAYER_KWARGS = {}
 #LAYER_CLASS = nn.Linear
 #DATASET = 'mstz/breast'
 DATASET = 'imodels/credit-card'
@@ -93,8 +94,9 @@ for epoch in tqdm(range(EPOCHS)):
         acces.append(acc_test)
         if losses[best] > loss_test or acc_test == 1.0:
             best = epoch
-            torch.save((model, X_test, y_test), "model.pt")
-            print(f"epoch {epoch} saved model with test_loss {loss_test} test_acc {acc_test}")
+            if SAVE:
+                torch.save((model, X_test, y_test), "model.pt")
+                print(f"epoch {epoch} saved model with test_loss {loss_test} test_acc {acc_test}")
         if epoch - best > PATIENCE or acc_test == 1.0:
             print(f"early stopping at epoch {epoch} with patience {PATIENCE}")
             break

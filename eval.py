@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from bitlinear import BitLinear, replace_layers
+from bitlinear2 import BitLinear, replace_layers
 #from bitnet import BitLinear
 #from bitnet_int import BitLinear
 import kernels
@@ -15,7 +15,7 @@ LAYER_KWARGS = {
 #    "kernel": kernels.torch_mul_add,
 #    "kernel": kernels.naive,
 #    "kernel": kernels.naive_listcomp,
-#    "kernel": kernels.ternary_naive,
+    "kernel": kernels.ternary_naive,
 }
 
 model, X_test, y_test = torch.load("model.pt")

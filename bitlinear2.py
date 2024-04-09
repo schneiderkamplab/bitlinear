@@ -3,36 +3,8 @@ import torch.nn as nn
 
 from kernels import torch_linear
 
-class Ternarize(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, input, scale):
-        unclipped = input / scale
-        ternarized = unclipped.round().clamp_(min=-1, max=1)
-        ternarized.requires_grad = False
-        return ternarized
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        return grad_output
-
-class AbsMaxQuantize(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, input, eps=1e-5, activation_bits=8):
-        Q_b = 2**(activation_bits-1)
-        gamma = input.abs().max(dim=-1, keepdim=True).values
-        quantized = torch.round(
-            torch.clamp(
-                input*Q_b/gamma,
-                -Q_b+eps,
-                Q_b-eps,
-            ),
-        )
-        quantized.requires_grad = False
-        return quantized, gamma
-
-    @staticmethod
-    def backward(ctx, grad_output, gamma):
-        return grad_output, None, None
+def round_clamp(input, min, max):
+    return (input.round().clamp(min, max) - input).detach() + input
 
 class BitLinear(nn.Linear):
     def __init__(
@@ -45,6 +17,7 @@ class BitLinear(nn.Linear):
             eps=1e-5,
             activation_bits=8,
             auto_requantize=True,
+            integer=True,
             training=True,
             kernel=torch_linear,
         ):
@@ -58,26 +31,33 @@ class BitLinear(nn.Linear):
         self.eps = eps
         self.activation_bits = activation_bits
         self.auto_requantize = auto_requantize
+        self.integer = integer
         self.training = training
         self.kernel = kernel
+        self.Q_b = 2**(activation_bits-1)-1
         if not self.auto_requantize or not self.training:
             self.requantize()
 
     def __repr__(self):
-        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, allow_zero={self.allow_zero}, auto_requantize={self.auto_requantize}, training={self.training}, kernel={self.kernel})"
+        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, auto_requantize={self.auto_requantize}, training={self.training}, kernel={self.kernel})"
 
     def requantize(self):
-        self.weights_scale = self.weight.abs().mean().clamp(min=self.eps)
-        self.quantized_weights = Ternarize.apply(self.weight, self.weights_scale)
+        self.w_scale = 1 / self.weight.abs().mean().clamp_(min=self.eps)
+        self.w_quant = round_clamp(self.weight * self.w_scale, -1, 1)
+        if not self.integer:
+            self.w_quant = self.w_quant / self.w_scale
 
-    def forward(self, input):
-        normalized_activations = torch.layer_norm(input, input.size()[1:])
-        quantized_activations, gamma = AbsMaxQuantize.apply(normalized_activations, self.eps, self.activation_bits)
+    def forward(self, x):
+        x_norm = torch.layer_norm(x, x.size()[1:])
+        x_scale = self.Q_b / x_norm.abs().max(dim=-1, keepdim=True).values.clamp_(min=self.eps)
+        x_quant = round_clamp(x_norm * x_scale, -self.Q_b-1, self.Q_b)
+        if not self.integer:
+            x_quant = x_quant / x_scale
         if self.training and self.auto_requantize:
             self.requantize()
-        quantized_outputs = self.kernel(quantized_activations, self.quantized_weights, self.bias)
-        dequantized_output = quantized_outputs*self.weights_scale*gamma/2**(self.activation_bits-1)
-        return dequantized_output
+        y_quant = self.kernel(x_quant, self.w_quant, self.bias)
+        y = y_quant / (self.w_scale * x_scale) if self.integer else y_quant
+        return y
 
 def replace_layers(model, old_class, new_class, **new_class_kwargs):
     for name, module in model.named_children():
