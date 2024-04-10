@@ -23,10 +23,10 @@ model = AutoModelForCausalLM.from_pretrained("HuggingFaceM4/tiny-random-LlamaFor
 replace_modules(model)
 ```
 
-A more elaborate example is available under `examples`, including training and evaluating a binary classifer:
+A more elaborate example is available under `examples/classifier`, including training and evaluating a binary classifer:
 ```
-python examples/train.py
-python examples/eval.py
+python examples/classifier/train.py
+python examples/classifier/eval.py
 ```
 
 # comparison to other work
@@ -40,5 +40,6 @@ The focus of this implementation is to develop:
 Furthermore, this implementation is meant to serve as a testbed for research on low-bit quantization aware training and inference.
 
 # future work
+* further examples (vision, llm)
 * efficient fused kernels for GPU/AVX/CPU training
 * efficient fused kernels for GPU/AVX/CPU inferenc
