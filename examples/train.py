@@ -21,6 +21,11 @@ INTERVAL = 100
 LEARNING_RATE = 1e-2
 SAVE = True
 LR_SCHEDULER = False
+try:
+    import schedulefree
+    OPTIMIZER_CLASS = schedulefree.AdamWScheduleFree
+except ImportError:
+    OPTIMIZER_CLASS = torch.optim.Adam
 
 # model config
 HIDDEN_DIM = 128
@@ -57,7 +62,7 @@ replace_modules(model, nn.Linear, LAYER_CLASS, LAYER_KWARGS)
 
 # training preparation
 criterion = nn.HuberLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+optimizer = OPTIMIZER_CLASS(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, cooldown=0, patience=50)
 best = 0
 losses = []
@@ -68,6 +73,9 @@ if BATCH_SIZE:
 # training
 for epoch in tqdm(range(EPOCHS)):
     optimizer.zero_grad()
+    model.train()
+    if optimizer.__class__.__name__ == "AdamWScheduleFree":
+        optimizer.train()
     if BATCH_SIZE:
         output_train = []
         for X_train_batch, y_train_batch in xy_train:
@@ -83,6 +91,9 @@ for epoch in tqdm(range(EPOCHS)):
     acc_train = sum(1 for z, y in zip(output_train, y_train) if abs(z.item() - y.item()) < 0.5) / len(y_train)
     optimizer.step()
     with torch.no_grad():
+        model.eval()
+        if optimizer.__class__.__name__ == "AdamWScheduleFree":
+            optimizer.eval()
         output_test = model(X_test)
         acc_test = sum(1 for z, y in zip(output_test, y_test) if abs(z.item() - y.item()) < 0.5) / len(y_test)
         loss_test = criterion(output_test, y_test)
