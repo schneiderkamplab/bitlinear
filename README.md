@@ -38,3 +38,7 @@ The focus of this implementation is to develop:
 * efficient fused kernels for inference with 2-bit weights and 8-bit activations.
 
 Furthermore, this implementation is meant to serve as a testbed for research on low-bit quantization aware training and inference.
+
+# future work
+* efficient fused kernels for GPU/AVX/CPU training
+* efficient fused kernels for GPU/AVX/CPU inferenc
