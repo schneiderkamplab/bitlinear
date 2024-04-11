@@ -23,10 +23,16 @@ model = AutoModelForCausalLM.from_pretrained("HuggingFaceM4/tiny-random-LlamaFor
 replace_modules(model)
 ```
 
-A more elaborate example is available under `examples/classifier`, including training and evaluating a binary classifer:
+More elaborate examples are available under `examples/classifier`, including training and evaluating a binary classifer:
 ```
+pip install -r examples/classifier/requirements.txt
 python examples/classifier/train.py
 python examples/classifier/eval.py
+```
+There is also an MNIST classifier:
+```
+pip install -r examples/classifier/requirements.txt
+python examples/mnist/train.py
 ```
 
 # comparison to other work
