@@ -88,7 +88,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=14, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=0.0025, metavar='LR',
-                        help='learning rate (default: 0.0025)')
+                        help='learning rate (default: 0.01)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--no-mps', action='store_true', default=False,
