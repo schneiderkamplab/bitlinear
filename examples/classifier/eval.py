@@ -8,7 +8,7 @@ LAYER_KWARGS = {
     "kernel": TorchMulAdd(),
 }
 
-model, X_test, y_test = torch.load("classifier.pt")
+model, X_test, y_test = torch.load("../models/classifier.pt")
 print(model)
 replace_modules(model, BitLinear, LAYER_CLASS, LAYER_KWARGS)
 print(model)
