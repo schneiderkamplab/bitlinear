@@ -104,7 +104,7 @@ for epoch in tqdm(range(EPOCHS)):
         if losses[best] > loss_test or acc_test == 1.0:
             best = epoch
             if SAVE:
-                torch.save((model, X_test, y_test), "model.pt")
+                torch.save((model, X_test, y_test), "classifier.pt")
                 print(f"epoch {epoch} saved model with test_loss {loss_test} test_acc {acc_test}")
         if epoch - best > PATIENCE or acc_test == 1.0:
             print(f"early stopping at epoch {epoch} with patience {PATIENCE}")
