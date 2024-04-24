@@ -37,9 +37,9 @@ class BitLinear(nn.Linear):
 
     def forward(self, x):
         x_norm = torch.layer_norm(x, x.size()[1:])
-        x_scale = self.Q_b / x_norm.abs().max(dim=-1, keepdim=True).values.clamp_(min=self.eps)
+        x_scale = self.Q_b / x_norm.detach().abs().max(dim=-1, keepdim=True).values.clamp_(min=self.eps)
         x_quant = round_clamp(x_norm * x_scale, -self.Q_b-1, self.Q_b)
-        w_scale = 1 / self.measure(self.weight.abs()).detach().clamp_(min=self.eps)
+        w_scale = 1 / self.measure(self.weight.detach().abs()).clamp_(min=self.eps)
         w_quant = round_clamp(self.weight * w_scale, -1, 1)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
         y = y_quant / (w_scale * x_scale)
