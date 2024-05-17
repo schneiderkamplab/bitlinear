@@ -50,7 +50,7 @@ class BitLinear(nn.Linear):
         x_scale = self.x_max / x_norm.detach().abs().max(dim=-1, keepdim=True).values.clamp_(min=self.eps)
         x_quant = round_clamp(x_norm * x_scale, -self.x_min, self.x_max)
         w_scale = 1 / self.measure(self.weight.detach().abs()).clamp_(min=self.eps)
-        w_quant = round_clamp(self.weight * w_scale, self.y_min, self.y_max)
+        w_quant = round_clamp(self.weight * w_scale, self.w_min, self.w_max)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
         y = y_quant / (w_scale * x_scale)
         return y
