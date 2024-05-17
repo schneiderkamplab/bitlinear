@@ -1,3 +1,4 @@
+from math import ceil
 import torch
 import torch.nn as nn
 
@@ -15,7 +16,12 @@ class BitLinear(nn.Linear):
             device=None,
             dtype=None,
             eps=1e-5,
+            weight_bits=1.58,
             activation_bits=8,
+            x_max=None,
+            x_min=None,
+            w_max=None,
+            w_min=None,
             kernel=TorchLinear(),
             measure=torch.median,
         ):
@@ -27,20 +33,22 @@ class BitLinear(nn.Linear):
             dtype=dtype,
         )
         self.eps = eps
-        self.activation_bits = activation_bits
         self.kernel = kernel
         self.measure = measure
-        self.Q_b = 2**(activation_bits-1)-1
+        self.x_max = x_max if x_max is not None else ceil(2**(activation_bits-1)-1)
+        self.x_min = x_min if x_min is not None else ceil(-2**(activation_bits-1))
+        self.w_max = w_max if w_max is not None else ceil(2**(weight_bits-1)-1)
+        self.w_min = w_min if w_min is not None else ceil(-2**(weight_bits-1))
 
     def __repr__(self):
-        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, activation_bits={self.activation_bits}, kernel={self.kernel})"
+        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_bits={self.weight_bits}, activation_bits={self.activation_bits}, x_max={self.x_max}, x_min={self.x_min}, w_max={self.w_max}, w_min={self.w_min}, kernel={self.kernel}, measure={self.measure})"
 
     def forward(self, x):
         x_norm = torch.layer_norm(x, x.size()[1:])
         x_scale = self.Q_b / x_norm.detach().abs().max(dim=-1, keepdim=True).values.clamp_(min=self.eps)
-        x_quant = round_clamp(x_norm * x_scale, -self.Q_b-1, self.Q_b)
+        x_quant = round_clamp(x_norm * x_scale, -self.x_min, self.x_max)
         w_scale = 1 / self.measure(self.weight.detach().abs()).clamp_(min=self.eps)
-        w_quant = round_clamp(self.weight * w_scale, -1, 1)
+        w_quant = round_clamp(self.weight * w_scale, self.y_min, self.y_max)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
         y = y_quant / (w_scale * x_scale)
         return y

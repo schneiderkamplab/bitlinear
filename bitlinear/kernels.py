@@ -54,6 +54,7 @@ class TernaryNaive(Kernel):
     def __call__(input, weight, bias=None):
         input = input.tolist()
         weight = weight.tolist()
+        assert all(all(x in {-1, 0, 1} for x in row) for row in input)
         if bias is not None:
             bias = bias.tolist()
         output = []
