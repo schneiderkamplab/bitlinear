@@ -35,6 +35,8 @@ class BitLinear(nn.Linear):
         self.eps = eps
         self.kernel = kernel
         self.measure = measure
+        self.activation_bits = activation_bits
+        self.weight_bits = weight_bits
         self.x_max = x_max if x_max is not None else ceil(2**(activation_bits-1)-1)
         self.x_min = x_min if x_min is not None else ceil(-2**(activation_bits-1))
         self.w_max = w_max if w_max is not None else ceil(2**(weight_bits-1)-1)
