@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from .kernels import TorchLinear
-from .measures import AbsMax, AbsMedian
+from .measures import AbsMax, AbsMedian, AbsMean
 
 def round_clamp(input, range):
     return (input.round().clamp(range[0], range[1]) - input).detach() + input
@@ -26,10 +26,10 @@ class BitLinear(nn.Linear):
             dtype=None,
             eps=1e-5,
             weight_range=1.58,
-            weight_measure=AbsMedian(),
+            weight_measure="AbsMedian",
             activation_range=8,
-            activation_measure=AbsMax(),
-            kernel=TorchLinear(),
+            activation_measure="AbsMax",
+            kernel="TorchLinear",
         ):
         super(BitLinear, self).__init__(
             in_features=in_features,
@@ -39,11 +39,11 @@ class BitLinear(nn.Linear):
             dtype=dtype,
         )
         self.eps = eps
-        self.kernel = kernel
-        self.weight_measure = weight_measure
-        self.activation_measure = activation_measure
-        self.activation_range = activation_range if isinstance(activation_range, Sequence) else range_from_bits(activation_range)
         self.weight_range = weight_range if isinstance(weight_range, Sequence) else range_from_bits(weight_range)
+        self.weight_measure = eval(weight_measure) if isinstance(weight_measure, str) else weight_measure
+        self.activation_range = activation_range if isinstance(activation_range, Sequence) else range_from_bits(activation_range)
+        self.activation_measure = eval(activation_measure) if isinstance(activation_measure, str) else activation_measure
+        self.kernel = eval(kernel) if isinstance(kernel, str) else kernel
 
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel})"
