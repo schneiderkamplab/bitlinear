@@ -1,4 +1,5 @@
 from math import ceil
+import re
 import torch
 import torch.nn as nn
 
@@ -55,9 +56,10 @@ class BitLinear(nn.Linear):
         y = y_quant / (w_scale * x_scale)
         return y
 
-def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_kwargs={}):
+def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_kwargs={}, match_name=None, prefix=""):
     for name, module in model.named_children():
-        if isinstance(module, old_class):
+        qual_name = prefix + "." + name
+        if isinstance(module, old_class) and (match_name is None or re.search(match_name, qual_name) is not None):
             kwargs = dict(new_class_kwargs)
             kwargs["in_features"] = module.in_features
             kwargs["out_features"] = module.out_features
@@ -69,4 +71,4 @@ def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_k
                 new_module.bias.data = module.bias.data
             setattr(model, name, new_module)
         else:
-            replace_modules(module, old_class, new_class, new_class_kwargs)
+            replace_modules(module, old_class, new_class, new_class_kwargs, match_name, prefix=qual_name)
