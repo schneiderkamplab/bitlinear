@@ -40,10 +40,10 @@ class BitLinear(nn.Linear):
         )
         self.eps = eps
         self.weight_range = weight_range if isinstance(weight_range, Sequence) else range_from_bits(weight_range)
-        self.weight_measure = eval(weight_measure) if isinstance(weight_measure, str) else weight_measure
+        self.weight_measure = eval(weight_measure)() if isinstance(weight_measure, str) else weight_measure
         self.activation_range = activation_range if isinstance(activation_range, Sequence) else range_from_bits(activation_range)
-        self.activation_measure = eval(activation_measure) if isinstance(activation_measure, str) else activation_measure
-        self.kernel = eval(kernel) if isinstance(kernel, str) else kernel
+        self.activation_measure = eval(activation_measure)() if isinstance(activation_measure, str) else activation_measure
+        self.kernel = eval(kernel)() if isinstance(kernel, str) else kernel
 
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel})"
@@ -58,10 +58,10 @@ class BitLinear(nn.Linear):
         y = y_quant / (w_scale * x_scale)
         return y
 
-def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_kwargs={}, match_name=None, prefix=""):
+def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_kwargs={}, match_name="", prefix=""):
     for name, module in model.named_children():
         qual_name = prefix + "." + name
-        if isinstance(module, old_class) and (match_name is None or re.search(match_name, qual_name) is not None):
+        if isinstance(module, old_class) and re.search(match_name, qual_name) is not None:
             kwargs = dict(new_class_kwargs)
             kwargs["in_features"] = module.in_features
             kwargs["out_features"] = module.out_features
@@ -74,3 +74,16 @@ def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_k
             setattr(model, name, new_module)
         else:
             replace_modules(module, old_class, new_class, new_class_kwargs, match_name, prefix=qual_name)
+
+def bitlinearize(model, old_class=nn.Linear, new_class=BitLinear, replacements=[{}]):
+    for replacement in replacements:
+        replacement = dict(replacement)
+        match_name = replacement.pop("match_name", "")
+        replace_modules(
+            model=model,
+            old_class=old_class,
+            new_class=new_class,
+            new_class_kwargs=replacement,
+            match_name=match_name,
+        )
+    return model

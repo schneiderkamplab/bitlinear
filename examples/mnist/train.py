@@ -1,6 +1,6 @@
 from __future__ import print_function
 import argparse
-from bitlinear import replace_modules
+from bitlinear import bitlinearize
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -134,7 +134,7 @@ def main():
     model = Net()
     if not args.no_bitlinear:
         print("Replacing linear layers by BitLinear")
-        replace_modules(model)
+        bitlinearize(model)
     model = model.to(device)
     optimizer = schedulefree.AdamWScheduleFree(model.parameters(), lr=args.lr)
 

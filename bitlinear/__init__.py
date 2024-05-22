@@ -1,5 +1,6 @@
 from .bitlinear import (
     BitLinear,
+    bitlinearize,
     replace_modules,
 )
 from .measures import (
