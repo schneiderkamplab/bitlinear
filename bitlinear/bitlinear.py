@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from math import ceil
 import re
 import torch
@@ -11,6 +12,9 @@ def round_clamp(input, range):
 
 def scale(input, range, measure, keepdim, eps):
     return max(abs(k) for k in range) / measure(input.detach(), keepdim=keepdim).clamp_(min=eps)
+
+def range_from_bits(bits):
+    return (ceil(-2**(bits-1)), ceil(2**(bits-1)-1))
 
 class BitLinear(nn.Linear):
     def __init__(
@@ -38,8 +42,8 @@ class BitLinear(nn.Linear):
         self.kernel = kernel
         self.weight_measure = weight_measure
         self.activation_measure = activation_measure
-        self.activation_range = activation_range if isinstance(activation_range, tuple) else (ceil(-2**(activation_range-1)), ceil(2**(activation_range-1)-1))
-        self.weight_range = weight_range if isinstance(weight_range, tuple) else (ceil(-2**(weight_range-1)), ceil(2**(weight_range-1)-1))
+        self.activation_range = activation_range if isinstance(activation_range, Sequence) else range_from_bits(activation_range)
+        self.weight_range = weight_range if isinstance(weight_range, Sequence) else range_from_bits(weight_range)
 
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel})"
