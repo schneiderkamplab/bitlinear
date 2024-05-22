@@ -4,9 +4,13 @@ import torch
 import torch.nn as nn
 
 from .kernels import TorchLinear
+from .measures import AbsMax, AbsMedian
 
-def round_clamp(input, min, max):
-    return (input.round().clamp(min, max) - input).detach() + input
+def round_clamp(input, range):
+    return (input.round().clamp(range[0], range[1]) - input).detach() + input
+
+def scale(input, range, measure, keepdim, eps):
+    return max(abs(k) for k in range) / measure(input.detach(), keepdim=keepdim).clamp_(min=eps)
 
 class BitLinear(nn.Linear):
     def __init__(
@@ -17,14 +21,11 @@ class BitLinear(nn.Linear):
             device=None,
             dtype=None,
             eps=1e-5,
-            weight_bits=1.58,
-            activation_bits=8,
-            x_max=None,
-            x_min=None,
-            w_max=None,
-            w_min=None,
+            weight_range=1.58,
+            weight_measure=AbsMedian(),
+            activation_range=8,
+            activation_measure=AbsMax(),
             kernel=TorchLinear(),
-            measure=torch.median,
         ):
         super(BitLinear, self).__init__(
             in_features=in_features,
@@ -35,23 +36,20 @@ class BitLinear(nn.Linear):
         )
         self.eps = eps
         self.kernel = kernel
-        self.measure = measure
-        self.activation_bits = activation_bits
-        self.weight_bits = weight_bits
-        self.x_max = x_max if x_max is not None else ceil(2**(activation_bits-1)-1)
-        self.x_min = x_min if x_min is not None else ceil(-2**(activation_bits-1))
-        self.w_max = w_max if w_max is not None else ceil(2**(weight_bits-1)-1)
-        self.w_min = w_min if w_min is not None else ceil(-2**(weight_bits-1))
+        self.weight_measure = weight_measure
+        self.activation_measure = activation_measure
+        self.activation_range = activation_range if isinstance(activation_range, tuple) else (ceil(-2**(activation_range-1)), ceil(2**(activation_range-1)-1))
+        self.weight_range = weight_range if isinstance(weight_range, tuple) else (ceil(-2**(weight_range-1)), ceil(2**(weight_range-1)-1))
 
     def __repr__(self):
-        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_bits={self.weight_bits}, activation_bits={self.activation_bits}, x_max={self.x_max}, x_min={self.x_min}, w_max={self.w_max}, w_min={self.w_min}, kernel={self.kernel}, measure={self.measure})"
+        return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel})"
 
     def forward(self, x):
         x_norm = torch.layer_norm(x, x.size()[1:])
-        x_scale = self.x_max / x_norm.detach().abs().max(dim=-1, keepdim=True).values.clamp_(min=self.eps)
-        x_quant = round_clamp(x_norm * x_scale, self.x_min, self.x_max)
-        w_scale = 1 / self.measure(self.weight.detach().abs()).clamp_(min=self.eps)
-        w_quant = round_clamp(self.weight * w_scale, self.w_min, self.w_max)
+        x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
+        x_quant = round_clamp(x_norm * x_scale, self.activation_range)
+        w_scale = scale(self.weight, self.weight_range, self.weight_measure, False, self.eps)
+        w_quant = round_clamp(self.weight * w_scale, self.weight_range)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
         y = y_quant / (w_scale * x_scale)
         return y
