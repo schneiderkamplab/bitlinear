@@ -49,11 +49,17 @@ class BitLinear(nn.Linear):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel})"
 
     def forward(self, x):
-        x_norm = torch.layer_norm(x, x.size()[1:])
-        x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
-        x_quant = round_clamp(x_norm * x_scale, self.activation_range)
-        w_scale = scale(self.weight, self.weight_range, self.weight_measure, False, self.eps)
-        w_quant = round_clamp(self.weight * w_scale, self.weight_range)
+        if self.activation_measure is None:
+            x_scale, x_quant = 1, x
+        else:
+            x_norm = torch.layer_norm(x, x.size()[1:])
+            x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
+            x_quant = round_clamp(x_norm * x_scale, self.activation_range)
+        if self.weight_measure is None:
+            w_scale, w_quant = 1, self.weight
+        else:
+            w_scale = scale(self.weight, self.weight_range, self.weight_measure, False, self.eps)
+            w_quant = round_clamp(self.weight * w_scale, self.weight_range)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
         y = y_quant / (w_scale * x_scale)
         return y
