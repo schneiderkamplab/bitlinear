@@ -1,10 +1,12 @@
 import click
+import random
 import torch
 
 from ..utils import (
     DETAIL,
     INFO,
     PROGRESS,
+    chunker,
     install_signal_handler,
     get_verbosity,
     log,
@@ -17,8 +19,31 @@ def load(matrix):
 def preprocess(a):
     return {str(k+1): ((k+1)*v).tolist() for k, v in enumerate(torch.tensor(a).transpose(1, 0))}
 
-def prioritize(a):
+def prioritize(a, heuristic):
+    if heuristic == "left-to-right":
+        return prioritize_left_to_right(a)
+    if heuristic == "random":
+        return prioritize_random(a)
+    if heuristic == "greedy":
+        return prioritize_greedy(a)
+
+def prioritize_left_to_right(a):
     return [list(a.keys())[:2]]
+
+def prioritize_random(a):
+    keys = list(a.keys())
+    random.shuffle(keys)
+    return list(chunker(keys, 2))
+
+def prioritize_greedy(a):
+    def histogram(v):
+        h = {}
+        for x in v:
+            h[x] = h.get(x, 0) + 1
+        return h
+    keys = list(a.keys())
+    keys.sort(key=lambda x: (-len(x), max(histogram(a[x]).values())), reverse=True)
+    return [keys[:2]]
 
 def merge(l, r, last_used, program):
     log(DETAIL, "Merge", l, "and", r)
@@ -91,13 +116,15 @@ def _optimize():
     pass
 @_optimize.command()
 @click.argument("matrices", type=click.Path(exists=True), nargs=-1)
+@click.option("--heuristic", type=click.Choice(["left-to-right", "random", "greedy"]), default="left-to-right")
 @click.option("--verbosity", default=get_verbosity(), help=f"Verbosity of the output (default: {get_verbosity()})")
-def optimize(matrices, verbosity):
+def optimize(matrices, heuristic, verbosity):
     #install_signal_handler()
-    do_optimize(matrices, verbosity)
+    do_optimize(matrices, heuristic, verbosity)
 
 def do_optimize(
         matrices,
+        heuristic="left-to-right",
         verbosity=get_verbosity(),
     ):
     set_verbosity(verbosity)
@@ -116,7 +143,7 @@ def do_optimize(
                 log(DETAIL, "Current length:", len(a))
             log(DETAIL, "Current state:", a)
             log(DETAIL, "Last used:", last_used)
-            priorities = prioritize(a)
+            priorities = prioritize(a, heuristic)
             log(DETAIL, "Priorities:", priorities)
             for l, r in priorities:
                 a[f".{l}{r}"] = merge(a[l] ,a[r], last_used, program)
@@ -128,4 +155,4 @@ def do_optimize(
         log(DETAIL, "Optimized matrix:", a)
         result = show(a, program, n)
         log(DETAIL, f"Result:", result)
-        log(INFO, f"Length of program for {n}x{m}:", len(program), (n-1)*m, len(program)*100/(n-1)/m)
+        log(INFO, f"Length of program for {n}x{m}:", len(program), (n-1)*m, len(program)*100/(n-1)/m, (n-1)*m/len(program))
