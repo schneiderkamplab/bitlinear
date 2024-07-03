@@ -26,6 +26,8 @@ def prioritize(a, heuristic):
         return prioritize_random(a)
     if heuristic == "greedy":
         return prioritize_greedy(a)
+    if heuristic == "compute":
+        return prioritize_compute(a)
 
 def prioritize_left_to_right(a):
     return [list(a.keys())[:2]]
@@ -44,6 +46,21 @@ def prioritize_greedy(a):
     keys = list(a.keys())
     keys.sort(key=lambda x: (-len(x), max(histogram(a[x]).values())), reverse=True)
     return [keys[:2]]
+
+def prioritize_compute(a):
+    log(INFO, "Computing priorities")
+    keys = list(a.keys())
+    pairs = []
+    for k1 in keys:
+        for k2 in keys:
+            if k1 == k2:
+                continue
+            vals = {((x, y) if x < y else (-y, -x)) for x, y in zip(a[k1], a[k2])}
+            pairs.append((len(k1), len(k2), len(vals), k1, k2))
+    pairs.sort()
+    prios = [(x, y) for _, _, _, x, y in pairs[:1]]
+    log(INFO, "Priorities computed", prios)
+    return prios
 
 def merge(l, r, last_used, program):
     log(DETAIL, "Merge", l, "and", r)
@@ -116,7 +133,7 @@ def _optimize():
     pass
 @_optimize.command()
 @click.argument("matrices", type=click.Path(exists=True), nargs=-1)
-@click.option("--heuristic", type=click.Choice(["left-to-right", "random", "greedy"]), default="left-to-right")
+@click.option("--heuristic", type=click.Choice(["left-to-right", "random", "greedy", "compute"]), default="left-to-right")
 @click.option("--verbosity", default=get_verbosity(), help=f"Verbosity of the output (default: {get_verbosity()})")
 def optimize(matrices, heuristic, verbosity):
     #install_signal_handler()
