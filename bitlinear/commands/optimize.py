@@ -105,7 +105,13 @@ def normalize(a, last_used, program):
     log(DETAIL, "Result:" ,n)
     return n
 
-def show(a, program, n):
+def show(a, program, n, language="py"):
+    if language == "py":
+        return show_python(a, program, n)
+    if language == "c":
+        return show_c(a, program, n)
+
+def show_python(a, program, n):
     def variable(x):
         if x == 0:
             return "0"
@@ -125,6 +131,27 @@ def show(a, program, n):
     lines.append(f"  return {', '.join(variable(x) for x in a)}")
     return "\n".join(lines)
 
+def show_c(a, program, n):
+    def variable(x):
+        if x == 0:
+            return "0"
+        if x <= n:
+            return f"x[{x-1}]"
+        return f"t_{x-n}"
+    lines = ['']
+    variables = "int *x, int *y"
+    lines.append(f"void f({variables}) {{")
+    for (x, y), z in program.items():
+        if x < 0:
+            lines.append(f"  int {variable(z)} = {variable(y)} - {variable(-x)};")
+        elif y < 0:
+            lines.append(f"  int {variable(z)} = {variable(x)} - {variable(-y)};")
+        else:
+            lines.append(f"  int {variable(z)} = {variable(x)} + {variable(y)};")
+    for i, x in enumerate(a):
+        lines.append(f"  y[{i}] = {variable(x)};")
+    lines.append("}")
+    return "\n".join(lines)
 
 @click.group()
 def _optimize():
@@ -132,14 +159,16 @@ def _optimize():
 @_optimize.command()
 @click.argument("matrices", type=click.Path(exists=True), nargs=-1)
 @click.option("--heuristic", type=click.Choice(["left-to-right", "random", "greedy", "compute"]), default="left-to-right")
+@click.option("--language", type=click.Choice(["py", "c"]), default="py")
 @click.option("--verbosity", default=get_verbosity(), help=f"Verbosity of the output (default: {get_verbosity()})")
-def optimize(matrices, heuristic, verbosity):
+def optimize(matrices, heuristic, language, verbosity):
     #install_signal_handler()
-    do_optimize(matrices, heuristic, verbosity)
+    do_optimize(matrices, heuristic, language, verbosity)
 
 def do_optimize(
         matrices,
         heuristic="left-to-right",
+        language="py",
         verbosity=get_verbosity(),
     ):
     set_verbosity(verbosity)
@@ -168,6 +197,6 @@ def do_optimize(
         log(DETAIL, "After normalization:", a)
         log(DETAIL, "Program:", program)
         log(DETAIL, "Optimized matrix:", a)
-        result = show(a, program, n)
+        result = show(a, program, n, language=language)
         log(DETAIL, f"Result:", result)
         log(INFO, f"Length of program for {n}x{m}:", len(program), (n-1)*m, len(program)*100/(n-1)/m, (n-1)*m/len(program))
