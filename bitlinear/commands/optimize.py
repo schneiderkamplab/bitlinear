@@ -5,13 +5,13 @@ import torch
 from ..utils import (
     DETAIL,
     INFO,
-    PROGRESS,
     chunker,
     install_signal_handler,
     load_bitlinear,
     get_verbosity,
     log,
     set_verbosity,
+    save_slp,
 )
 
 def preprocess(a):
@@ -105,76 +105,27 @@ def normalize(a, last_used, program):
     log(DETAIL, "Result:" ,n)
     return n
 
-def show(a, program, n, language="py"):
-    if language == "py":
-        return show_python(a, program, n)
-    if language == "c":
-        return show_c(a, program, n)
-
-def show_python(a, program, n):
-    def variable(x):
-        if x == 0:
-            return "0"
-        if x <= n:
-            return f"x_{x-1}"
-        return f"t_{x-n}"
-    lines = ['']
-    variables = ", ".join(f"x_{i}" for i in range(n))
-    lines.append(f"def f({variables}):")
-    for (x, y), z in program.items():
-        if x < 0:
-            lines.append(f"  {variable(z)} = {variable(y)} - {variable(-x)}")
-        elif y < 0:
-            lines.append(f"  {variable(z)} = {variable(x)} - {variable(-y)}")
-        else:
-            lines.append(f"  {variable(z)} = {variable(x)} + {variable(y)}")
-    lines.append(f"  return {', '.join(variable(x) for x in a)}")
-    return "\n".join(lines)
-
-def show_c(a, program, n):
-    def variable(x):
-        if x == 0:
-            return "0"
-        if x <= n:
-            return f"x[{x-1}]"
-        return f"t_{x-n}"
-    lines = ['']
-    variables = "int *x, int *y"
-    lines.append(f"void f({variables}) {{")
-    for (x, y), z in program.items():
-        if x < 0:
-            lines.append(f"  int {variable(z)} = {variable(y)} - {variable(-x)};")
-        elif y < 0:
-            lines.append(f"  int {variable(z)} = {variable(x)} - {variable(-y)};")
-        else:
-            lines.append(f"  int {variable(z)} = {variable(x)} + {variable(y)};")
-    for i, x in enumerate(a):
-        lines.append(f"  y[{i}] = {variable(x)};")
-    lines.append("}")
-    return "\n".join(lines)
-
 @click.group()
 def _optimize():
     pass
 @_optimize.command()
 @click.argument("matrices", type=click.Path(exists=True), nargs=-1)
-@click.option("--heuristic", type=click.Choice(["left-to-right", "random", "greedy", "compute"]), default="left-to-right")
-@click.option("--language", type=click.Choice(["py", "c"]), default="py")
+@click.option("--heuristic", type=click.Choice(["left-to-right", "random", "greedy", "compute", "naive"]), default="left-to-right")
 @click.option("--verbosity", default=get_verbosity(), help=f"Verbosity of the output (default: {get_verbosity()})")
-def optimize(matrices, heuristic, language, verbosity):
+def optimize(matrices, heuristic, verbosity):
     #install_signal_handler()
-    do_optimize(matrices, heuristic, language, verbosity)
+    do_optimize(matrices, heuristic, verbosity)
 
 def do_optimize(
         matrices,
         heuristic="left-to-right",
-        language="py",
         verbosity=get_verbosity(),
     ):
     set_verbosity(verbosity)
-    for matrix in matrices:
-        log(INFO, "Optimizing matrix", matrix)
-        a = load_bitlinear(matrix)
+    for matrix_name in matrices:
+        log(INFO, "Optimizing matrix", matrix_name)
+        a = load_bitlinear(matrix_name)
+        orig_a = a
         m = len(a)
         log(DETAIL, "After loading:", a)
         a = preprocess(a)
@@ -197,6 +148,13 @@ def do_optimize(
         log(DETAIL, "After normalization:", a)
         log(DETAIL, "Program:", program)
         log(DETAIL, "Optimized matrix:", a)
-        result = show(a, program, n, language=language)
-        log(DETAIL, f"Result:", result)
         log(INFO, f"Length of program for {n}x{m}:", len(program), (n-1)*m, len(program)*100/(n-1)/m, (n-1)*m/len(program))
+        program_name = f"{matrix_name.rsplit('.', maxsplit=1)[0]}.program"
+        log(INFO, f"Saving to {program_name}")
+        save_slp(
+            program_name,
+            n,
+            program,
+            a,
+            comments=f"Optimized matrix {n}x{m} using heuristic {heuristic}:\n"+'\n'.join(' '.join(str(x) for x in row) for row in orig_a),
+        )
