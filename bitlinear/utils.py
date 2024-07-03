@@ -36,3 +36,33 @@ def install_signal_handler():
     signal.signal(signal.SIGINT, signal_handler)
 def should_exit():
     return exit_flag
+
+# file handling
+def load_bitlinear(file_name):
+    data = []
+    n = None
+    with open(file_name, "rt") as f:
+        for line in f:
+            if line.startswith("c"):
+                continue
+            if line.startswith("p"):
+                _, bitlinear, n, m = line.split()
+                assert bitlinear == "bitlinear"
+                n, m = int(n), int(m)
+                continue
+            assert n is not None
+            row = [int(x) for x in line.split()]
+            assert len(row) == n
+            data.append(row)
+    assert len(data) == m
+    return data
+
+def save_bitlinear(file_name, data, comments=None):
+    assert data and all(len(x) == len(data[0]) for x in data)
+    m, n = len(data), len(data[0])
+    with open(file_name, "wt") as f:
+        if comments is not None:
+            for comment in comments.split("\n"):
+                f.write(f"c {comment}\n")
+        f.write(f"p bitlinear {n} {m}\n")
+        f.write('\n'.join(' '.join(str(y) for y in x) for x in data))

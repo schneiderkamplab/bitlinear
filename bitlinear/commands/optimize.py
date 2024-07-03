@@ -8,13 +8,11 @@ from ..utils import (
     PROGRESS,
     chunker,
     install_signal_handler,
+    load_bitlinear,
     get_verbosity,
     log,
     set_verbosity,
 )
-
-def load(matrix):
-    return [[int(x) for x in line.strip().split()] for line in open(matrix).read().strip().split("\n")]
 
 def preprocess(a):
     return {str(k+1): ((k+1)*v).tolist() for k, v in enumerate(torch.tensor(a).transpose(1, 0))}
@@ -147,7 +145,7 @@ def do_optimize(
     set_verbosity(verbosity)
     for matrix in matrices:
         log(INFO, "Optimizing matrix", matrix)
-        a = load(matrix)
+        a = load_bitlinear(matrix)
         m = len(a)
         log(DETAIL, "After loading:", a)
         a = preprocess(a)
