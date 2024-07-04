@@ -66,7 +66,7 @@ def save_bitlinear(file_name, data, comments=None):
         f.write(f"p bitlinear {n} {m}\n")
         f.write('\n'.join(' '.join(str(y) for y in x) for x in data))
 def load_slp(file_name):
-    program = {}
+    program = []
     outputs = []
     num_inputs = None
     outputs = None
@@ -82,7 +82,7 @@ def load_slp(file_name):
             if num_outputs is not None:
                 if len(program) < len_program:
                     x, y, z = [int(x) for x in line.split()]
-                    program[(x, y)] = z
+                    program.append(((x, y), z))
                 elif outputs is None:
                     outputs = [int(x) for x in line.split()]
                 else:
@@ -96,6 +96,6 @@ def save_slp(file_name, num_inputs, program, outputs, comments=None):
             for comment in comments.split("\n"):
                 f.write(f"c {comment}\n")
         f.write(f"p slp {num_inputs} {len(program)} {len(outputs)}\n")
-        for (x, y), z in program.items():
+        for (x, y), z in program:
             f.write(f"{x} {y} {z}\n")
         f.write(" ".join(str(x) for x in outputs)+"\n")

@@ -12,13 +12,13 @@ from ..utils import (
     set_verbosity,
 )
 
-def show(a, program, n, language="py"):
+def show(n, program, a, language="py"):
     if language == "py":
-        return show_python(a, program, n)
+        return show_python(n, program, a)
     if language == "c":
-        return show_c(a, program, n)
+        return show_c(n, program, a)
 
-def show_python(a, program, n):
+def show_python(n, program, a):
     def variable(x):
         if x == 0:
             return "0"
@@ -28,7 +28,7 @@ def show_python(a, program, n):
     lines = []
     variables = ", ".join(f"x_{i}" for i in range(n))
     lines.append(f"def f({variables}):")
-    for (x, y), z in program.items():
+    for (x, y), z in program:
         if x < 0:
             lines.append(f"  {variable(z)} = {variable(y)} - {variable(-x)}")
         elif y < 0:
@@ -38,7 +38,7 @@ def show_python(a, program, n):
     lines.append(f"  return {', '.join(variable(x) for x in a)}")
     return "\n".join(lines)
 
-def show_c(a, program, n):
+def show_c(n, program, a):
     def variable(x):
         if x == 0:
             return "0"
@@ -48,7 +48,7 @@ def show_c(a, program, n):
     lines = []
     variables = "int *x, int *y"
     lines.append(f"void f({variables}) {{")
-    for (x, y), z in program.items():
+    for (x, y), z in program:
         if x < 0:
             lines.append(f"  int {variable(z)} = {variable(y)} - {variable(-x)};")
         elif y < 0:
@@ -80,7 +80,7 @@ def do_compile(
     for program_name in programs:
         log(INFO, "Compiling program", program_name)
         n, program, a = load_slp(program_name)
-        result = show(a, program, n, language=language)
+        result = show(n, program, a, language=language)
         log(DETAIL, f"Result:", result)
         result_name = program_name.rsplit(".", maxsplit=1)[0] + "." + language
         log(INFO, "Saving result to", result_name)
