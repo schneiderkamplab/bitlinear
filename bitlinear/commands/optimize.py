@@ -64,7 +64,6 @@ def merge(l, r, last_used, program, use_cache, drop_zeros):
     log(DETAIL, "Merge", l, "and", r)
     n = []
     for x, y in zip(l, r):
-        print(program)
         if drop_zeros and x == 0:
             n.append(y)
             continue
