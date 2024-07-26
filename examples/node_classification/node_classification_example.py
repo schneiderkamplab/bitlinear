@@ -10,25 +10,29 @@ from bitlinear import BitLinear, replace_modules
 
 
 USE_BITLINEAR = True   # Toggle this
+BITLINEAR_WEIGHT_MEASURE = "AbsMedian"  # AbsMean, AbsMedian
+K = 2
+lr = 0.01 # 0.001 for SGC, 0.01 for BitSGC
 
 # Load the Cora dataset
-dataset = Planetoid(root='/tmp/Cora', name='Cora')
+
+dataset = Planetoid(root='/tmp/Planetoid/Citeseer', name='Citeseer')  # Cora, Citeseer, PubMed
 
 class BitSGConv(SGConv):
     def __init__(self, in_channels: int, out_channels: int, K=1, bias=True, **kwargs):
         kwargs.setdefault('aggr', 'add')
         super().__init__(in_channels, out_channels, K=K, bias=bias, **kwargs)
-        self.lin = BitLinear(in_channels, out_channels, bias=bias)
+        self.lin = BitLinear(in_channels, out_channels, bias=bias, weight_measure=BITLINEAR_WEIGHT_MEASURE)
         self.reset_parameters()
 
 
 # Initialize the model and optimizer
 if USE_BITLINEAR:
-    model = BitSGConv(dataset.num_features, dataset.num_classes, K=1, add_self_loops=True)
+    model = BitSGConv(dataset.num_features, dataset.num_classes, K=K, add_self_loops=True)
 else:
-    model = SGConv(dataset.num_features, dataset.num_classes, K=1, add_self_loops=True)
+    model = SGConv(dataset.num_features, dataset.num_classes, K=K, add_self_loops=True)
     
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.01)
 criterion = nn.CrossEntropyLoss()
 
 print(model)
