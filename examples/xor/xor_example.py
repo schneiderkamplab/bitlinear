@@ -3,15 +3,18 @@ import torch.nn as nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from bitlinear import BitLinear, replace_modules, AbsMax, AbsMean, AbsMedian
+import random
+import numpy as np
+import torch
 
 
-### From bitlinear source, could be imported
+### BEGIN from bitlinear source, could be imported
 def round_clamp(input, range):
     return (input.round().clamp(range[0], range[1]) - input).detach() + input
 
 def scale(input, range, measure, keepdim, eps):
     return max(abs(k) for k in range) / measure(input.detach(), keepdim=keepdim).clamp_(min=eps)
-### END From bitlinear source
+### END from bitlinear source
 
 
 def quantize_weights(m: nn.Module):
@@ -22,6 +25,15 @@ def quantize_weights(m: nn.Module):
 
 
 def main():
+    # Set seed for reproducibility
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     n = 10000
     n_train = 5000
     n_test = n - n_train
@@ -29,10 +41,10 @@ def main():
     bsz = 100
     break_on_first_solution = False
 
-    lr = 1e-1
+    lr = 0.01
 
     n_hidden = 8  # BitLinear seems to need more than Linear
-    use_bitlinear = True  # change to false for basic MLP
+    use_bitlinear = False  # change to false for basic MLP
     weight_measure = "AbsMedian"  # AbsMean, AbsMedian
 
     # Build toy dataset
@@ -102,15 +114,18 @@ def main():
         print("Input2hidden weights cols 2-3 (should be zero)", i2h_w[:, [2,3]], sep="\n")
         print("Input2hidden weights cols 2-3 L1 norm:", torch.linalg.vector_norm(i2h_w[:, [2,3]], 1).item())
         print("-"*80)
+        print("Analyzing input2hidden bias...", model[0].bias)
+        print("-"*80)
 
         print("-"*80)
         print("Analyzing hidden2output layer...", model[2])
+
         h2i_w = quantize_weights(model[-1]) if isinstance(model[-1], BitLinear) else model[-1].weight
         print("hidden2output weights", h2i_w, sep="\n")
         print("hidden2output weights L1 norm:", torch.linalg.vector_norm(h2i_w, 1).item())
         print("-"*80)
-
-
+        print("Analyzing hidden2output bias...", model[2].bias)
+        print("-"*80)
 
 if __name__ == "__main__":
     main()
