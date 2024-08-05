@@ -30,21 +30,13 @@ class FrozenBitLinear(nn.Linear):
         )
         
         self.eps = eps
-        
-        self.kernel = eval(kernel)(activation_range, activation_measure) if isinstance(kernel, str) else kernel        
+        self.kernel = eval(kernel)(eps, activation_range, activation_measure) if isinstance(kernel, str) else kernel(eps, activation_range, activation_measure)      
 
     def __repr__(self):
         return f"FrozenBitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, kernel={self.kernel}), activation_range={self.activation_range}, activation_measure={self.activation_measure}"
 
     def forward(self, x):
-        if self.activation_measure is None:
-            x_scale, x_quant = 1, x
-        else:
-            x_norm = torch.layer_norm(x, x.size()[1:])
-            x_scale = 1 / scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
-            x_quant = round_clamp(x_norm / x_scale, self.activation_range)
-        
-        return self.kernel(x_quant, self.weight, self.bias, self.w_scale * x_scale)
+        return self.kernel(x, self.weight, self.bias, self.w_scale)
     
     def freeze_weights(self, weights:torch.Tensor, weightMeasure:str='AbsMean'):
         """
@@ -99,7 +91,7 @@ def freeze(
                 default is 1e-5
             activation_measure : str
                 str corresponding to the activation quantization method
-                options are 'AbsMean', 'AbsMax', 'AbsMedian', and None
+                options are 'AbsMean', 'AbsMax', 'AbsMedian', and 'Fp16'
                 'AbsMax'
             activation_range : int
                 number of bits to represent the activations in

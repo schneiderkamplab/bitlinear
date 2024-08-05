@@ -2,14 +2,13 @@ import torch
 import os
 import json
 
-def weights(N, K, kernel, baseline, dtype = torch.float16) -> tuple[torch.Tensor, torch.Tensor, float]:
+def weights(N, K, kernel, baseline, dtype = torch.float16) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     path = f'weights/{kernel}/{N}_{K}'
     try:
         
         torch_weights = torch.load(os.path.join(path, 'torch.pt'), weights_only=True).to('cuda')
         kernel_weights = torch.load(os.path.join(path, 'kernel.pt'), weights_only=True).to('cuda')
-        with open(os.path.join(path, 'scale.json'), 'r') as f:
-            scale = json.load(f)
+        scale = torch.load(os.path.join(path, 'scale.pt'), weights_only=True).to('cuda')
         return torch_weights, kernel_weights, scale
     
     except Exception as e:
@@ -22,8 +21,7 @@ def weights(N, K, kernel, baseline, dtype = torch.float16) -> tuple[torch.Tensor
         os.makedirs(path, exist_ok=True)
         torch.save(base_weights, os.path.join(path, 'torch.pt'))
         torch.save(kernel_weights, os.path.join(path, 'kernel.pt'))
-        with open(os.path.join(path, 'scale.json'), 'w') as f:
-            json.dump(scale, f)
+        torch.save(scale, os.path.join(path, 'scale.pt'))
         
         return base_weights, kernel_weights, scale
     

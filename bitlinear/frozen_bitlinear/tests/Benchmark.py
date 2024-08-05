@@ -25,7 +25,7 @@ class Benchmark:
         self.device='cuda'
         
         self.kernel_name = args.kernel
-        self.kernel = eval(self.kernel_name)()
+        self.kernel = eval(self.kernel_name)(activation_measure='Fp16')
         
         self.baseline = TorchLinear()
         

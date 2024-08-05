@@ -8,39 +8,42 @@ Make sure you have the correct packages installed in your virtual environment. I
 
 Afterwards, you need to build the desired CUDA kernels for use on your machine. To do so, you can selectively build the kernels you would like to test or use through:
 ``` 
-> cd path/to/bitlinear/bitlinear/kernels/cuda/pack_weights
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear/cuda/pack_weights
 > python setup.py build_ext --inplace
-> cd path/to/bitlinear/bitlinear/kernels/cuda/kernels/*
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear/cuda/kernels/*
 > python setup.py build_ext --inplace
 ```
 You can also build all of them at once by running 
 ``` 
-> cd path/to/bitlinear/bitlinear/kernels/
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear/
 > chmod +x scripts/build.sh
 > scripts/build.sh
 ```
 
 ## Testing
-Choose one of the kernels available in ```path/to/bitlinear/bitlinear/kernels/src/``` to test against the PyTorch baseline for your device. 
+Choose one of the kernels available in ```path/to/bitlinear/bitlinear/frozen_bitlinear/src/``` to test against the PyTorch baseline for your device. 
 ``` 
 < conda activate env
-< cd path/to/bitlinear/bitlinear/kernels
+< cd path/to/bitlinear/bitlinear/frozen_bitlinear
 < chmod +x scripts/test.sh
-< scripts/test.sh
-  < Which Kernel would you like to test?  
-  < kernel_name
+< scripts/test.sh 
+    -d <device> (CUDA_AVAILABLE_DEVICES=$device)
+    -k <kernel_name> 
 ```
 
-All logs, data, and plots are stored locally under ```path/to/bitlinear/bitlinear/kernels/results/{%Y%m%d_%T}/```.
+All logs, data, and plots are stored locally under ```path/to/bitlinear/bitlinear/frozen_bitlinear/results/{%Y%m%d_%T}/```.
 
 If any issues come up, you can reach me at ```sopsahl@mit.edu```.
 
 ## Cleanup 
 To clean the builds and results, run the following commands.
 ``` 
-> cd path/to/bitlinear/bitlinear/kernels
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear
 > chmod +x scripts/clean.sh
-> scripts/clean.sh
+> scripts/clean.sh 
+    -b (default: builds only)
+    -w (weights)
+    -r (results)
 ```
 
 

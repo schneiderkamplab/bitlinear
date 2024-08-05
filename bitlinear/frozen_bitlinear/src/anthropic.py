@@ -9,9 +9,11 @@ class Anthropic(Packed8):
                 assert activations.shape[0] == bias.shape[0], "Bias dimension must match input"
                 
                 M, K = activations.shape
-                N = weights.shape[0] * 4//K          
+                N = weights.shape[0] * 4//K    
                 
-                return self.fxn(activations, weights, bias, M, N, K) * scale
+                x_quant, x_scale = self.activations(input)
+                
+                return self.fxn(x_quant, weights, bias, M, N, K) * scale * x_scale
 
 class Naive(Anthropic):
     fxn = naive.linear
