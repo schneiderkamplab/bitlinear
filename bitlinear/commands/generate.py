@@ -37,7 +37,7 @@ def do_generate(
     if seed is not None:
         random.seed(seed)
         torch.manual_seed(seed)
-    log(INFO, "Generating random ternary matrix of {n} columns and {m} rows")
+    log(INFO, f"Generating random ternary matrix of {n} columns and {m} rows")
     a = torch.randint(-1, 1, (m, n))
     log(INFO, f"Saving random ternary matrix to {output_path}/random-{n}-{m}.bitlinear")
     save_bitlinear(
