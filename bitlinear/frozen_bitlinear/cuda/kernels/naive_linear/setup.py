@@ -6,11 +6,11 @@ if not torch.cuda.is_available():
     raise RuntimeError("CUDA is not available. The extension requires CUDA.")
 
 setup(
-    name='naive_linear_cuda',
+    name='naive',
     ext_modules=[
         CUDAExtension(
-            name='naive_linear_cuda',
-            sources=['naive_linear.cu']
+            name='naive',
+            sources=['naive.cu']
         )
     ],
     cmdclass={

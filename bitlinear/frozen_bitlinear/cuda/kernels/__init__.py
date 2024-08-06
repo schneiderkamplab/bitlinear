@@ -1,1 +1,1 @@
-from cuda.kernels.anthropic import naive, bitlinear_naive
+from cuda.kernels.naive_linear import naive

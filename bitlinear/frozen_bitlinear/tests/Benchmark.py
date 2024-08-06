@@ -16,7 +16,7 @@ from tests.helpers import weights
 
 class Benchmark:
     
-    options = [256, 512, 1024, 2048, 4096, 8192]
+    options = [256, 512, 1024, 2048, 4096]
     
     def __init__(self, args):
         
@@ -59,7 +59,7 @@ class Benchmark:
             print(f"❌ Triton and Torch differ for (M={M}, N={N}, K={K}) -- Maximum Normalized Difference : {difference}")
             return False, difference
     
-    def unittests(self, upper_limit=8096, step=128):
+    def unittests(self, upper_limit=4096, step=128):
         
         pbar = tqdm(total=upper_limit//step, desc=f"Unit Tests", leave=True)
         

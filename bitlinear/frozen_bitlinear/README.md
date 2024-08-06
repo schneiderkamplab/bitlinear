@@ -1,55 +1,3 @@
-## Setup
-Make sure you have the correct packages installed in your virtual environment. In a conda environment, you can run:
-``` 
-> conda create -n env python pip
-> conda activate env
-> pip install -r requirements.txt
-```
-
-Afterwards, you need to build the desired CUDA kernels for use on your machine. To do so, you can selectively build the kernels you would like to test or use through:
-``` 
-> cd path/to/bitlinear/bitlinear/frozen_bitlinear/cuda/pack_weights
-> python setup.py build_ext --inplace
-> cd path/to/bitlinear/bitlinear/frozen_bitlinear/cuda/kernels/*
-> python setup.py build_ext --inplace
-```
-You can also build all of them at once by running 
-``` 
-> cd path/to/bitlinear/bitlinear/frozen_bitlinear/
-> chmod +x scripts/build.sh
-> scripts/build.sh
-```
-
-## Testing
-Choose one of the kernels available in ```path/to/bitlinear/bitlinear/frozen_bitlinear/src/``` to test against the PyTorch baseline for your device. 
-``` 
-< conda activate env
-< cd path/to/bitlinear/bitlinear/frozen_bitlinear
-< chmod +x scripts/test.sh
-< scripts/test.sh 
-    -d <device> (CUDA_AVAILABLE_DEVICES=$device)
-    -k <kernel_name> 
-```
-
-All logs, data, and plots are stored locally under ```path/to/bitlinear/bitlinear/frozen_bitlinear/results/{%Y%m%d_%T}/```.
-
-If any issues come up, you can reach me at [sopsahl@mit.edu](mailto:sopsahl@mit.edu).
-
-## Cleanup 
-To clean the builds and results, run the following commands.
-``` 
-> cd path/to/bitlinear/bitlinear/frozen_bitlinear
-> chmod +x scripts/clean.sh
-> scripts/clean.sh 
-    -b (default: builds only)
-    -w (weights)
-    -r (results)
-```
-
-
-
-
-
 
 ## Motivations
 
@@ -134,3 +82,63 @@ Because weight loads are significantly cheaper per capita than activation loads,
 The tradeoff with this implementation is the reliance on threads to be synchronized within the thread call, which is necessary to avoid race conditions but results in a performance penalty.
 
 Further optimization is required to balance the size of K, M and N in scheduling the batch sizes to schedule to the block and individual threads. Because cuBLAS is highly optimized in this regard, we need a significant speedup to offset their gains. Later work can go into developing autotuning algorithms that dynamically schedule the computation as to maximize the L2 cache hit ratio and minimize synchronization delay. 
+
+## Limitations
+
+As of now, this optimization extends only into inference. The method of packing weights seems redundant in training, as the shadow weights being stored in higher precision is [necessary for gradient accumulation](https://arxiv.org/pdf/2402.17764). The speedups still can be realized in the forward passes, but more investigation and more robust kernels must be devised to turn these into reality. 
+
+Further work can also be spent looking into fusing these kernels to realize even faster speedups. This has been growing in popularity recently, and luckily, alot of the work [has been done](https://github.com/ridgerchu/matmulfreellm) for ternary weight layers, we just need to plug and play with our matmul kernel.
+
+## Setup
+Make sure you have the correct packages installed in your virtual environment. In a conda environment, you can run:
+``` 
+> conda create -n env python pip
+> conda activate env
+> pip install -r requirements.txt
+```
+
+Afterwards, you need to build the desired CUDA kernels for use on your machine. To do so, you can selectively build the kernels you would like to test or use through:
+``` 
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear/cuda/pack_weights
+> python setup.py build_ext --inplace
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear/cuda/kernels/*
+> python setup.py build_ext --inplace
+```
+You can also build all of them at once by running 
+``` 
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear/
+> chmod +x scripts/build.sh
+> scripts/build.sh
+```
+
+## Testing
+Choose one of the kernels available in ```path/to/bitlinear/bitlinear/frozen_bitlinear/src/``` to test against the PyTorch baseline for your device. 
+``` 
+< conda activate env
+< cd path/to/bitlinear/bitlinear/frozen_bitlinear
+< chmod +x scripts/test.sh
+< scripts/test.sh 
+    -d <device> (CUDA_AVAILABLE_DEVICES=$device)
+    -k <kernel_name> 
+```
+
+All logs, data, and plots are stored locally under ```path/to/bitlinear/bitlinear/frozen_bitlinear/results/{%Y%m%d_%T}/```.
+
+If any issues come up, you can reach me at [sopsahl@mit.edu](mailto:sopsahl@mit.edu).
+
+All benchmarks have been tested on an A6000.
+
+## Cleanup 
+To clean the builds and results, run the following commands.
+``` 
+> cd path/to/bitlinear/bitlinear/frozen_bitlinear
+> chmod +x scripts/clean.sh
+> scripts/clean.sh 
+    -b (default: builds only)
+    -w (weights)
+    -r (results)
+```
+
+
+## References 
+...

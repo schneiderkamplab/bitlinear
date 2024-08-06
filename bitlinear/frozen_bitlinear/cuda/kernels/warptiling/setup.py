@@ -6,11 +6,11 @@ if not torch.cuda.is_available():
     raise RuntimeError("CUDA is not available. The extension requires CUDA.")
 
 setup(
-    name='streamed_linear_cuda',
+    name='warptiling',
     ext_modules=[
         CUDAExtension(
-            name='streamed_linear_cuda',
-            sources=['linear.cu']
+            name='warptiling',
+            sources=['runner.cu']
         )
     ],
     cmdclass={
