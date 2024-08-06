@@ -12,14 +12,6 @@ for dir in "${Kernel_DIR}/"*/; do
     if [ -f "${dir}setup.py" ]; then
         echo "Building in directory: $dir"
         (cd "$dir" && python setup.py build_ext --inplace)
-    else
-        # If `setup.py` is not in the first level, check subdirectories
-        for subdir in "${dir}"*/; do
-            if [ -f "${subdir}setup.py" ]; then
-                echo "Building in subdirectory: $subdir"
-                (cd "$subdir" && python setup.py build_ext --inplace)
-            fi
-        done
     fi
 done
 

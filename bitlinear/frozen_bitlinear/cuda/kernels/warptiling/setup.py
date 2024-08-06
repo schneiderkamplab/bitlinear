@@ -10,7 +10,8 @@ setup(
     ext_modules=[
         CUDAExtension(
             name='warptiling',
-            sources=['runner.cu']
+            sources=['kernels/warptiling.cu'
+                     ]
         )
     ],
     cmdclass={

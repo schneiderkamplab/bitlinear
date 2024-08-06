@@ -5,7 +5,7 @@ from src.utils.helpers import weight_round_clamp, AbsMax, AbsMean, AbsMedian, Fp
 from cuda.pack_weights import pack_weights
    
 class Kernel:
-    def __init__(self, eps=1e-5, activation_range = 8, activation_measure = 'AbsMax'):
+    def __init__(self, eps=1e-5, activation_range=8, activation_measure = 'AbsMax'):
         
         self.eps = eps
         self.activations = eval(activation_measure)(activation_range, eps)

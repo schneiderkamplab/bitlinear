@@ -49,8 +49,8 @@ torch::Tensor packedint8(
     // Calculate size for packed weights tensor
     int packed_size = (n * k + 3) / 4; // 4 weights per int8
 
-
     auto packed_weights_int32 = torch::zeros({packed_size}, torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
+    auto packed_weights_int8 = torch::empty({packed_size}, torch::TensorOptions().dtype(torch::kInt8).device(torch::kCUDA));
 
     const unsigned int block_size = 32;
     const unsigned int grid_rows = (n + block_size - 1) / block_size;
@@ -58,6 +58,7 @@ torch::Tensor packedint8(
 
     dim3 dimGrid(grid_cols, grid_rows);
     dim3 dimBlock(block_size, block_size);
+    unsigned int grid_size = (packed_size + block_size - 1) / block_size;
 
     pack_weights_kernel<<<dimGrid, dimBlock>>>(
         reinterpret_cast<const half*>(weights.data_ptr<at::Half>()),
@@ -65,29 +66,14 @@ torch::Tensor packedint8(
         n,
         k
     );
-
-    cudaError_t err = cudaGetLastError();
-    TORCH_CHECK(err == cudaSuccess, "CUDA kernel failed with error: ", cudaGetErrorString(err));
-
-    cudaDeviceSynchronize();
-
-    // Allocate final packed weights as int8
-    auto packed_weights_int8 = torch::empty({packed_size}, torch::TensorOptions().dtype(torch::kInt8).device(torch::kCUDA));
-
-    // Calculate the number of blocks needed for the second kernel
-    unsigned int grid_size = (packed_size + block_size - 1) / block_size;
-
-    // Launch the second kernel to cast int32 to int8
     int32_to_int8_kernel<<<grid_size, block_size>>>(
         packed_weights_int32.data_ptr<int>(),
         packed_weights_int8.data_ptr<int8_t>(),
         packed_size
     );
 
-    err = cudaGetLastError();
-    TORCH_CHECK(err == cudaSuccess, "CUDA kernel (int32_to_int8_kernel) failed with error: ", cudaGetErrorString(err));
-
-    cudaDeviceSynchronize();
+    cudaError_t err = cudaDeviceSynchronize();
+    TORCH_CHECK(err == cudaSuccess, "CUDA kernel failed with error: ", cudaGetErrorString(err));
 
     return packed_weights_int8;
 }

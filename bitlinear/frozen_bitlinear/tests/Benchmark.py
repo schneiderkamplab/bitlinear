@@ -27,7 +27,7 @@ class Benchmark:
         self.kernel_name = args.kernel
         self.kernel = eval(self.kernel_name)(activation_measure='Fp16')
         
-        self.baseline = TorchLinear()
+        self.baseline = TorchLinear(activation_measure='Fp16')
         
         print(f'Testing with {self.kernel_name} kernel.')
         self.ref_lib = 'cuBLAS'        

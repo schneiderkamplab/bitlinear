@@ -6,11 +6,11 @@ from math import ceil
 Activation Quantization Helpers
 '''
 
-def symmetric_range_from_bits(self, range):
+def symmetric_range_from_bits(range):
     return (ceil(-2**(range-1)), ceil(2**(range-1)-1))
 
-def round_clamp(self, input):
-    return (input.round().clamp(self.range[0], self.range[1]) - input).detach() + input
+def round_clamp(input, range):
+    return (input.round().clamp(range[0], range[1]) - input).detach() + input
     
 class ActivationMeasure:
     def __init__(self, range=8, eps=1e-5):
@@ -20,7 +20,7 @@ class ActivationMeasure:
     def __call__(self, input):
         x_norm = torch.layer_norm(input, input.size()[1:])
         x_scale = self.scale(x_norm)
-        return round_clamp(x_norm/x_scale), x_scale
+        return round_clamp(x_norm/x_scale, self.range), x_scale
 
     def scale(self, input) -> torch.Tensor:
         raise NotImplementedError
@@ -37,7 +37,7 @@ class Fp16(ActivationMeasure):
     def __init__(self, range=8, eps=1e-5):
         pass
     def __call__(self, input) -> tuple[torch.Tensor, torch.Tensor]:
-        return input, torch.Tensor(1.0)
+        return input, torch.tensor([[1.0]], device='cuda', dtype=torch.float16)
 
 class AbsMax(ActivationMeasure): 
     def scale(self, input) -> torch.Tensor:

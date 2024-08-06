@@ -83,11 +83,13 @@ The tradeoff with this implementation is the reliance on threads to be synchroni
 
 Further optimization is required to balance the size of K, M and N in scheduling the batch sizes to schedule to the block and individual threads. Because cuBLAS is highly optimized in this regard, we need a significant speedup to offset their gains. Later work can go into developing autotuning algorithms that dynamically schedule the computation as to maximize the L2 cache hit ratio and minimize synchronization delay. 
 
-## Limitations
+## Future Work
 
 As of now, this optimization extends only into inference. The method of packing weights seems redundant in training, as the shadow weights being stored in higher precision is [necessary for gradient accumulation](https://arxiv.org/pdf/2402.17764). The speedups still can be realized in the forward passes, but more investigation and more robust kernels must be devised to turn these into reality. 
 
-Further work can also be spent looking into fusing these kernels to realize even faster speedups. This has been growing in popularity recently, and luckily, alot of the work [has been done](https://github.com/ridgerchu/matmulfreellm) for ternary weight layers, we just need to plug and play with our matmul kernel.
+Further work can also be spent looking into fusing these kernels with layer norm, softmax, and other such adjoining layers to realize even faster speedups. This has been growing in popularity recently, and luckily, alot of the work [has been done](https://github.com/ridgerchu/matmulfreellm) for ternary weight layers, we just need to plug and play with our matmul kernel.
+
+Finally, we have 1.58 bits of information packed into 2, but by utilizing compression algorithms, we can realize even higher levels of weight packing. Because a weight can only occupy one of 3 states ($00$, $10$, or $01$), we can compress $10$ to just $1$, resulting in a further 13% of savings. Another solution could be extending the context region, which would introduce complex interdependencies, but as each weight must be loaded in higher precision in a load magnitudes more costly than bit-level computation, it may prove beneficial. As weight loads are not the crux of the cost, however, it is unclear if traversing this path is worth it. 
 
 ## Setup
 Make sure you have the correct packages installed in your virtual environment. In a conda environment, you can run:
