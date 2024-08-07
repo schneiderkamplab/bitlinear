@@ -22,7 +22,6 @@ const uint rowStrideA = (NUM_THREADS * 4) / BK;
 const uint rowStrideB = NUM_THREADS / (BN / 4);
 const uint NUM_WARPS = NUM_THREADS / WARPSIZE;
 
-
 #define CEIL_DIV(x, y) ((x) + (y)-1) / (y) 
 
 
