@@ -16,7 +16,7 @@ const uint TM = 8; // The per-thread tile size for M dimension.
 Helper Functions for Vectorized Loads
 */
 typedef struct {
-    half2 data[4];
+    half data[8];
 } half8;
 
 typedef struct {
@@ -25,7 +25,7 @@ typedef struct {
 
 __device__ void loadfromGMEM(
     int N, int K, 
-    const half *A, const int8_t *W,
+    const half *A, const int16_t *W,
     half *sA, int8_t *sW, 
     int innerRowA, int innerColA,
     int innerRowB, int innerColB
@@ -49,7 +49,9 @@ __device__ void loadfromGMEM(
     sA[8 * idx + 7] = __high2half(tmp.data[3]);
 
 
-
+    // Load 128 bits from the int16_t array (8 int16_t values)
+    short8 int16Data = reinterpret_cast<const short8*>(W)[...];
+    int16Result[idx] = int16Data;
 
 
     // Synchronize to ensure all threads have written their data
