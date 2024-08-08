@@ -24,7 +24,6 @@ const uint NUM_WARPS = NUM_THREADS / WARPSIZE;
 
 #define CEIL_DIV(x, y) ((x) + (y)-1) / (y) 
 
-
 /*
 Half4 Helper Functions
 */

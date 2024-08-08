@@ -29,7 +29,6 @@ __global__ void naive_kernel(
     
       for (int offset=0; offset<4; offset++) {
         int8_t mask = (weight & (3 << (2 * offset))) >> (2 * offset);
-
         float input_val = __half2float(input[row * K + k + offset]);
 
         if (mask == 1) {
