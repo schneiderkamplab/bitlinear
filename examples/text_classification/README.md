@@ -1,5 +1,8 @@
 # BitMLP for text classification
 
+1. Fetch the data folder from https://github.com/lgalke/text_gcn
+2. Make sure the following packages are installed `torch`, `transformers`, `numpy`, `sklearn`
+2. `bash run.bash`
 
 | **Model** | **20ng** | **R8** | **R52** | **ohsumed** | **MR** | **avg.** |
 |:--|:--|:--|:--|:--|:--|:--|
