@@ -1,8 +1,13 @@
 # BitMLP for text classification
 
+We start with a wide two-layer MLP for text classification, as proposed in [Bag-of-Words vs. Graph vs. Sequence in Text Classification: Questioning the Necessity of Text-Graphs and the Surprising Strength of a Wide MLP](https://aclanthology.org/2022.acl-long.279) (Galke & Scherp, ACL 2022). We replace the two `torch.nn.Linear` modules by `BitLinear` and experiment with mean quantization and median quantization
+
+##  Usage
 1. Fetch the data folder from https://github.com/lgalke/text_gcn
 2. Make sure the following packages are installed `torch`, `transformers`, `numpy`, `sklearn`
 2. `bash run.bash`
+
+## Results
 
 | **Model** | **20ng** | **R8** | **R52** | **ohsumed** | **MR** | **avg.** |
 |:--|:--|:--|:--|:--|:--|:--|
