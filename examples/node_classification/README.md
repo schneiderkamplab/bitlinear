@@ -1,8 +1,6 @@
 # Node Classification Example
 
-In node classification, the model must learn a mapping from node features $X$ and node connectivity $A$ to class labels $y$.
-We experiment with a simple yet powerful model for node classification: Simplified Graph Convolution (SGC).
-
+In node classification, the model should learn a mapping from node features $X$ and node connectivity $A$ to derive a class labels for each node $y$.  We experiment with a simple yet powerful model for node classification: Simplified Graph Convolution (SGC) by [Wu et al., ICML 2019](http://proceedings.mlr.press/v97/wu19e) and replace the linear layers with bitlinear, either with mean or median weight measure.
 
 
 | **Model**                      | **Cora**  | **CiteSeer** | **PubMed** |   **Avg.**|
