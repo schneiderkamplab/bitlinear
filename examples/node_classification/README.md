@@ -2,6 +2,12 @@
 
 In node classification, the model should learn a mapping from node features $X$ and node connectivity $A$ to derive a class labels for each node $y$.  We experiment with a simple yet powerful model for node classification: Simplified Graph Convolution (SGC) by [Wu et al., ICML 2019](http://proceedings.mlr.press/v97/wu19e) and replace the linear layers with bitlinear, either with mean or median weight measure.
 
+## Usage
+
+1. Install bitlinear as a package, and dependencies pytorch and pytorch-geometric
+2. `python3 node_classification.py`
+
+## Results
 
 | **Model**                      | **Cora**  | **CiteSeer** | **PubMed** |   **Avg.**|
 |:-------------------------------|------:|---------:|-------:|------:|
