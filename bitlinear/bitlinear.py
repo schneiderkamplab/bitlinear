@@ -64,6 +64,38 @@ class BitLinear(nn.Linear):
         y = y_quant / (w_scale * x_scale)
         return y
 
+class FrozenBitLinear(nn.Linear):
+    def __init__(self, bitlinear):
+        bias = bitlinear.bias is not None
+        super(FrozenBitLinear, self).__init__(
+            in_features=bitlinear.in_features,
+            out_features=bitlinear.out_features,
+            bias=bias,
+            device=bitlinear.device,
+            dtype=bitlinear.dtype,
+        )
+        if bias:
+            self.bias.data = bitlinear.bias.data
+        self.eps = bitlinear.eps
+        self.activation_range = bitlinear.activation_range
+        self.activation_measure = bitlinear.activation_measure
+        if self.weight_measure is None:
+            self.w_scale, self.w_quant = 1, bitlinear.weight
+        else:
+            self.w_scale = scale(bitlinear.weight, bitlinear.weight_range, bitlinear.weight_measure, False, self.eps)
+            self.w_quant = round_clamp(bitlinear.weight * self.w_scale, bitlinear.weight_range)
+
+    def forward(self, x):
+        if self.activation_measure is None:
+            x_scale, x_quant = 1, x
+        else:
+            x_norm = torch.layer_norm(x, x.size()[1:])
+            x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
+            x_quant = round_clamp(x_norm * x_scale, self.activation_range)
+        y_quant = self.kernel(x_quant, self.w_quant, self.bias)
+        y = y_quant / (self.w_scale * x_scale)
+        return y
+
 def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_kwargs={}, match_name="", prefix=""):
     for name, module in model.named_children():
         qual_name = prefix + "." + name
