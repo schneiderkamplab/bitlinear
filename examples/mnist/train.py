@@ -134,7 +134,8 @@ def main():
     model = Net()
     if not args.no_bitlinear:
         print("Replacing linear layers by BitLinear")
-        bitlinearize(model)
+        bitlinearize(model, replacements=[{"strategy": "sample"}])
+    print(model)
     model = model.to(device)
     optimizer = schedulefree.AdamWScheduleFree(model.parameters(), lr=args.lr)
 
