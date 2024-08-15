@@ -33,7 +33,7 @@ HIDDEN_DIM = 128
 HIDDEN_LAYERS = 4
 ACTIVATION_CLASS = nn.ReLU
 LAYER_CLASS = BitLinear
-LAYER_KWARGS = {"activation_measure": "AbsMax", "weight_measure": None, "weight_range": (-1, 1), "activation_range": [-7, 7]}
+LAYER_KWARGS = {"activation_measure": "AbsMax", "weight_measure": "AbsMean", "weight_range": (-1, 1), "activation_range": (-7, 7), "strategy": "sample"}
 
 # data preparation
 data = load_dataset(DATASET)['train'].to_pandas()
