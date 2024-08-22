@@ -1,0 +1,8 @@
+torch
+triton
+pandas
+numpy
+plotly
+tqdm
+matplotlib
+openpxyl
