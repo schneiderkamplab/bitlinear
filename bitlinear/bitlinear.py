@@ -114,6 +114,7 @@ def replace_modules(model, old_class=nn.Linear, new_class=BitLinear, new_class_k
             kwargs["out_features"] = module.out_features
             bias = getattr(module, "bias", None) is not None
             kwargs["bias"] = bias
+            kwargs["device"] = module.weight.device
             new_module = new_class(**kwargs)
             new_module.weight.data = module.weight.data
             if bias:
