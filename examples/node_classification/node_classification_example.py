@@ -21,7 +21,7 @@ class BitSGConv(SGConv):
     def __init__(self, in_channels: int, out_channels: int, K=1, bias=True, **kwargs):
         kwargs.setdefault('aggr', 'add')
         super().__init__(in_channels, out_channels, K=K, bias=bias, **kwargs)
-        self.lin = BitLinear(in_channels, out_channels, bias=bias, weight_measure=BITLINEAR_WEIGHT_MEASURE)
+        self.lin = BitLinear(in_channels, out_channels, bias=bias, weight_measure=BITLINEAR_WEIGHT_MEASURE, strategy="sample")
         self.reset_parameters()
 
 
