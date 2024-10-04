@@ -138,7 +138,7 @@ def bitlinearize(model, old_class=nn.Linear, new_class=BitLinear, replacements=[
         )
     return model
 
-def set_lamnda_(model, lambda_=1):
+def set_lambda_(model, lambda_=1):
     assert 0.0 <= lambda_ <= 1.0
     for module in model.modules():
         if isinstance(module, BitLinear):
