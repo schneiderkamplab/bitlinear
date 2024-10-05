@@ -2,6 +2,7 @@ from .bitlinear import (
     BitLinear,
     bitlinearize,
     replace_modules,
+    set_lambda_,
 )
 from .measures import (
     AbsMax,
