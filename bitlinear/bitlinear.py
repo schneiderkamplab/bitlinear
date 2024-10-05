@@ -38,7 +38,7 @@ class BitLinear(nn.Linear):
             activation_measure="AbsMax",
             kernel="TorchLinear",
             strategy="round_clamp",
-            lambda_=1,
+            lambda_=1.0,
         ):
         super(BitLinear, self).__init__(
             in_features=in_features,
@@ -140,8 +140,6 @@ def bitlinearize(model, old_class=nn.Linear, new_class=BitLinear, replacements=[
 
 def set_lambda_(model, lambda_=1.0):
     assert 0.0 <= lambda_ <= 1.0
-    for name, module in model.named_children():
+    for module in model.modules():
         if isinstance(module, BitLinear):
             module.lambda_ = lambda_
-        else:
-            set_lambda_(module, lambda_)
