@@ -142,6 +142,6 @@ def set_lambda_(model, lambda_=1.0):
     assert 0.0 <= lambda_ <= 1.0
     for name, module in model.named_children():
         if isinstance(module, BitLinear):
-            module.lambda_ = lambda_:
+            module.lambda_ = lambda_
         else:
             set_lambda_(module, lambda_)
