@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from .kernels import TorchLinear
+from .norms import LayerNorm
 from .measures import AbsMax, AbsMedian, AbsMean
 
 def round_clamp(input, range, lambda_=1):
@@ -38,6 +39,7 @@ class BitLinear(nn.Linear):
             activation_measure="AbsMax",
             kernel="TorchLinear",
             strategy="round_clamp",
+            norm="LayerNorm",
             lambda_=1.0,
         ):
         super(BitLinear, self).__init__(
@@ -54,16 +56,17 @@ class BitLinear(nn.Linear):
         self.activation_measure = eval(activation_measure)() if isinstance(activation_measure, str) else activation_measure
         self.kernel = eval(kernel)() if isinstance(kernel, str) else kernel
         self.strategy = eval(strategy) if isinstance(strategy, str) else strategy
+        self.norm = eval(norm)(in_features) if isinstance(norm, str) else norm
         self.lambda_ = lambda_
 
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel}, strategy={self.strategy}, lambda_={self.lambda_})"
 
     def forward(self, x):
+        x_norm = self.norm(x) if self.norm is not None else x
         if self.activation_measure is None:
             x_scale, x_quant = 1, x
         else:
-            x_norm = torch.layer_norm(x, x.size()[1:])
             x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
             x_quant = self.strategy(x_norm * x_scale, self.activation_range, self.lambda_)
         if self.weight_measure is None:
