@@ -9,3 +9,7 @@ class Norm:
 class LayerNorm(Norm):
     def __call__(self, input):
         return torch.layer_norm(input, [self.in_features])
+
+class ParametricLayerNorm(Norm, torch.nn.LayerNorm):
+    def __init__(self, in_features):
+        torch.nn.LayerNorm.__init__(self, in_features)
