@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bitlinear"
-version = "2.3.0"
+version = "2.4.0"
 authors = [
   { name = "Peter Schneider-Kamp" }
 ]
