@@ -11,6 +11,43 @@ from .measures import AbsMax, AbsMedian, AbsMean
 def round_clamp(input, range, lambda_=1):
     return lambda_ * (input.round().clamp(range[0], range[1]) - input).detach() + input
 
+
+def round_clamp_blockwise(input, range, block_size=32, lambda_=1):
+    """
+     Block-wise quantization with per-block FP8 scaling (MX-FP4/NV-FP4 style).
+    """
+    *batch_dims, features = input.shape
+    num_blocks = (features + block_size - 1) // block_size
+    pad_size = num_blocks * block_size - features
+
+    if pad_size > 0:
+        input_padded = torch.nn.functional.pad(input, (0, pad_size)) # we need to be divible by block_size
+    else:
+        input_padded = input
+
+    input_blocked = input_padded.view(*batch_dims, num_blocks, block_size) # Reshape to (batch_dims..., num_blocks, block_size). Know we have independent blocks
+    # Compute per-block FP8 scale: max absolute value in each block
+    block_max = input_blocked.abs().max(dim=-1, keepdim=True)[0]
+    block_max = torch.clamp(block_max, min=1e-8)  # Avoid division by zero
+    
+    # Calculate scale to map block_max to quantization range
+    # scale = range_max / block_max, so input * scale fits in [-range_max, range_max]
+    quant_max = max(abs(range[0]), abs(range[1]))
+    block_scale = block_scale = block_max / quant_max 
+
+    input_scaled = input_blocked / block_scale
+    input_quant  = input_scaled.round().clamp(range[0], range[1])
+    input_block_fp = input_quant * block_scale
+
+    input_block_fp = lambda_ * (input_block_fp - input_blocked).detach() + input_blocked
+
+    # Reshape back
+    input_block_fp = input_block_fp.view(*batch_dims, num_blocks * block_size)
+    if pad_size > 0:
+        input_block_fp = input_block_fp[..., :features]
+
+    return input_block_fp
+
 def scale(input, range, measure, keepdim, eps):
     return max(abs(k) for k in range) / measure(input.detach(), keepdim=keepdim).clamp_(min=eps)
 
@@ -41,6 +78,8 @@ class BitLinear(nn.Linear):
             strategy="round_clamp",
             norm="LayerNorm",
             lambda_=1.0,
+            mx=False, # use mixed precision (fp8) for activation quantization in online manner 
+            mx_block_size=32,
         ):
         super(BitLinear, self).__init__(
             in_features=in_features,
@@ -58,6 +97,8 @@ class BitLinear(nn.Linear):
         self.strategy = eval(strategy) if isinstance(strategy, str) else strategy
         self.norm = eval(norm)(in_features) if isinstance(norm, str) else norm
         self.lambda_ = lambda_
+        self.mx = mx
+        self.mx_block_size = mx_block_size
 
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel}, strategy={self.strategy}, lambda_={self.lambda_})"
@@ -66,6 +107,14 @@ class BitLinear(nn.Linear):
         x_norm = self.norm(x) if self.norm is not None else x
         if self.activation_measure is None:
             x_scale, x_quant = 1, x
+        elif self.mx:
+            x_quant = round_clamp_blockwise(
+                x_norm, 
+                self.activation_range, 
+                block_size=self.mx_block_size,
+                lambda_=self.lambda_
+            )
+            x_scale = 1  # Scaling is handled inside round_clamp_blockwise
         else:
             x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
             x_quant = self.strategy(x_norm * x_scale, self.activation_range, self.lambda_)
@@ -76,7 +125,7 @@ class BitLinear(nn.Linear):
             w_quant = self.strategy(self.weight * w_scale, self.weight_range, self.lambda_)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
         y = y_quant / (w_scale * x_scale)
-        return y
+        return y_quant
 
 class FrozenBitLinear(nn.Linear):
     def __init__(self, bitlinear):
