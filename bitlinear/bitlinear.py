@@ -14,12 +14,13 @@ def round_clamp(input, range, lambda_=1):
 
 def round_clamp_blockwise(input, range, block_size=32, lambda_=1):
     """
-     Block-wise quantization with per-block FP8 scaling (MX-FP4/NV-FP4 style).
+    Block-wise quantization with per-block FP8 scaling (MX-FP4/NV-FP4 style).
+    Returns: (quantized_output, effective_scale)
     """
     *batch_dims, features = input.shape
     num_blocks = (features + block_size - 1) // block_size
     pad_size = num_blocks * block_size - features
-
+    
     if pad_size > 0:
         input_padded = torch.nn.functional.pad(input, (0, pad_size)) # we need to be divible by block_size
     else:
@@ -33,20 +34,23 @@ def round_clamp_blockwise(input, range, block_size=32, lambda_=1):
     # Calculate scale to map block_max to quantization range
     # scale = range_max / block_max, so input * scale fits in [-range_max, range_max]
     quant_max = max(abs(range[0]), abs(range[1]))
-    block_scale = block_scale = block_max / quant_max 
+    block_scale = quant_max / block_max  # Shape: (..., num_blocks, 1) 
 
-    input_scaled = input_blocked / block_scale
+    input_scaled = input_blocked * block_scale
     input_quant  = input_scaled.round().clamp(range[0], range[1])
-    input_block_fp = input_quant * block_scale
+    
+    # Apply STE with lambda
+    input_quant = lambda_ * (input_quant - input_scaled).detach() + input_scaled
 
-    input_block_fp = lambda_ * (input_block_fp - input_blocked).detach() + input_blocked
-
-    # Reshape back
-    input_block_fp = input_block_fp.view(*batch_dims, num_blocks * block_size)
+    # Reshape blocks back to one matrix and remove padding
+    input_quant = input_quant.view(*batch_dims, num_blocks * block_size)
     if pad_size > 0:
-        input_block_fp = input_block_fp[..., :features]
+        input_quant = input_quant[..., :features]
+    
+    # Compute effective scale (average of block scales)
+    effective_scale = block_scale.mean()
 
-    return input_block_fp
+    return input_quant, effective_scale
 
 def scale(input, range, measure, keepdim, eps):
     return max(abs(k) for k in range) / measure(input.detach(), keepdim=keepdim).clamp_(min=eps)
@@ -71,8 +75,9 @@ class BitLinear(nn.Linear):
             dtype=None,
             eps=1e-5,
             weight_range=1.58,
-            weight_measure="AbsMedian",
+            weight_measure="AbsMean",
             activation_range=8,
+            mx_activation_range=12,
             activation_measure="AbsMax",
             kernel="TorchLinear",
             strategy="round_clamp",
@@ -99,6 +104,7 @@ class BitLinear(nn.Linear):
         self.lambda_ = lambda_
         self.mx = mx
         self.mx_block_size = mx_block_size
+        self.mx_activation_range = mx_activation_range if isinstance(mx_activation_range, Sequence) else range_from_bits(mx_activation_range)
 
     def __repr__(self):
         return f"BitLinear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}, eps={self.eps}, weight_range={self.weight_range}, weight_measure={self.weight_measure}, activation_range={self.activation_range}, activation_measure={self.activation_measure}, kernel={self.kernel}, strategy={self.strategy}, lambda_={self.lambda_}, mx={self.mx}, mx_block_size={self.mx_block_size})"
@@ -108,23 +114,23 @@ class BitLinear(nn.Linear):
         if self.activation_measure is None:
             x_scale, x_quant = 1, x
         elif self.mx:
-            x_quant = round_clamp_blockwise(
+            x_quant, x_scale = round_clamp_blockwise(
                 x_norm, 
-                self.activation_range, 
+                self.mx_activation_range, 
                 block_size=self.mx_block_size,
                 lambda_=self.lambda_
             )
-            x_scale = 1  # Scaling is handled inside round_clamp_blockwise
         else:
             x_scale = scale(x_norm, self.activation_range, self.activation_measure, True, self.eps)
             x_quant = self.strategy(x_norm * x_scale, self.activation_range, self.lambda_)
+            # print("x_quant:", x_quant)
         if self.weight_measure is None:
             w_scale, w_quant = 1, self.weight
         else:
             w_scale = scale(self.weight, self.weight_range, self.weight_measure, False, self.eps)
             w_quant = self.strategy(self.weight * w_scale, self.weight_range, self.lambda_)
         y_quant = self.kernel(x_quant, w_quant, self.bias)
-        y = y_quant / (w_scale * x_scale)
+        y_quant = y_quant / (w_scale * x_scale)
         return y_quant
 
 class FrozenBitLinear(nn.Linear):
