@@ -45,6 +45,9 @@ The focus of this implementation is to develop:
 
 Furthermore, this implementation is meant to serve as a testbed for research on low-bit quantization aware training and inference.
 
+# notable use cases
+[TernLight semantic embeddings in 7MB WASM](https://github.com/soycaporal/ternlight)
+
 # future work
 * further examples (vision, llm)
 * efficient fused kernels for GPU/AVX/CPU training
