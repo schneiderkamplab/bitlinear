@@ -9,10 +9,8 @@ from .measures import (
     AbsMean,
     AbsMedian,
 )
-from .kernels import (
-    Naive,
-    NaiveListComp,
-    TernaryNaive,
+from .frozen_bitlinear.frozen_bitlinear import (
     TorchLinear,
-    TorchMulAdd,
+    Naive
 )
+
